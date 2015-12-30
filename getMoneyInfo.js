@@ -1,0 +1,12 @@
+/*eslint no-console: 0 */
+
+(function () {
+    var config = require('./config'),
+        ZaimUtil = require('./zaimUtil');
+
+    ZaimUtil.getMoneyInfo(config).then(function (moneys) {
+        console.dir(moneys.length);
+        //console.dir(moneys);
+    });
+
+}());
