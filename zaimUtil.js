@@ -1,19 +1,22 @@
 /*eslint no-console: 0 */
+/*eslint no-var: 2,  prefer-const: 2,  prefer-arrow-callback: 2  */
+/*eslint-env es6*/
 
 module.exports = (function () {
-    var Zaim = require('zaim');
+    'use strict';
+    const Zaim = require('zaim');
 
     function arrayConcat(a, b) {
         return Array.prototype.push.apply(a, b);
     }
 
     function readOneline() {
-        var reader = require('readline').createInterface({
+        const reader = require('readline').createInterface({
             input: process.stdin,
             output: process.stdout
         });
-        return new Promise(function (resolve) {
-            reader.on('line', function (line) {
+        return new Promise((resolve) => {
+            reader.on('line', (line) => {
                 reader.close();
                 resolve(line.trim());
             });
@@ -21,17 +24,17 @@ module.exports = (function () {
     }
 
     function getAuthorizationUrl(zaim) {
-        return new Promise(function (resolve) {
-            zaim.getAuthorizationUrl(function(url) {
+        return new Promise((resolve) =>  {
+            zaim.getAuthorizationUrl((url) => {
                 resolve(url);
             });
         });
     }
     function getOAuthAccessToken(zaim, pin) {
-        return new Promise(function (resolve, reject) {
+        return new Promise((resolve, reject) => {
             zaim.getOAuthAccessToken(
                 pin,
-                function(err, token, secret, results) {
+                (err, token, secret, results) => {
                     if (err !== undefined) {
                         resolve({
                             token,
@@ -47,37 +50,35 @@ module.exports = (function () {
     }
 
     function getAccessToken(config) {
-        var zaim;
-
-        zaim = new Zaim({
+        const zaim = new Zaim({
             consumerKey: config.consumerKey,
             consumerSecret: config.consumerSecret,
             callback: config.serviceURL
         });
 
         Promise.resolve()
-            .then(function () {
+            .then(() => {
                 console.log('AuthorizationUrl');
                 return getAuthorizationUrl(zaim);
             })
-            .then(function (url) {
+            .then((url) => {
                 console.log('return AuthorizationUrl');
                 console.log(url);
                 console.log('input verifier:');
                 return readOneline();
             })
-            .then(function (verifier) {
+            .then((verifier) => {
                 console.log('getOAuthAccessToken');
                 return getOAuthAccessToken(zaim, verifier);
             })
-            .then(function (info) {
+            .then((info) => {
                 console.log('access token');
                 console.log(info.token); //access token
                 console.log('access token secret');
                 console.log(info.secret); //access token secret
                 //console.dir(info.results);
             })
-            .catch(function (err) {
+            .catch((err) => {
                 console.error('error !');
                 console.error(err.stack);
             });
@@ -85,8 +86,8 @@ module.exports = (function () {
 
     function requestGetMoney(zaim, param, page) {
         param.page = page;
-        return new Promise(function (resolve, reject) {
-            zaim.getMoney(param, function(data, err) {
+        return new Promise((resolve, reject) => {
+            zaim.getMoney(param, (data, err) => {
                 if (err === undefined) {
                     resolve(data);
                 } else {
@@ -97,7 +98,7 @@ module.exports = (function () {
     }
 
     function makeFirstDayString(dayString) {
-        var dayArray = dayString.split('-');
+        const dayArray = dayString.split('-');
         return [dayArray[0], dayArray[1], '01'].join('-');
     }
     function preZero(num) {
@@ -107,7 +108,7 @@ module.exports = (function () {
         return ('00' + num).slice(-2);
     }
     function makeNowDayString() {
-        var now = new Date();
+        const now = new Date();
         return [
             String(now.getFullYear()),
             preZero(now.getMonth() + 1),
@@ -116,8 +117,7 @@ module.exports = (function () {
     }
 
     function getMoneyInfo(config, endDay, startDay) {
-        var zaim,
-            itemNumPerPage = 6,
+        const itemNumPerPage = 6,
             param = {
                 //category_id: , //'narrow down by category_id',
                 //genre_id: undefined, // 'narrow down by genre_id',
@@ -128,6 +128,8 @@ module.exports = (function () {
                 page: 1, //page: 'number of current page (default 1)',
                 limit: itemNumPerPage //'number of items per page (default 20, max 100)'
             };
+        let zaim;
+
         if (endDay === undefined) {
             endDay = makeNowDayString();
         }
@@ -147,12 +149,12 @@ module.exports = (function () {
             callback: config.serviceURL
         });
 
-        return new Promise(function (resolve, reject) {
-            var moneys = [];
+        return new Promise((resolve, reject) => {
+            const moneys = [];
 
             (function loop(page) {
                 // console.log('request GetMoney:page-' + page);
-                requestGetMoney(zaim, param, page).then(function (data) {
+                requestGetMoney(zaim, param, page).then((data) => {
                     // console.log('return GetMoney:item Num - ' + data.money.length);
                     arrayConcat(moneys, data.money);
                     if (data.money.length === itemNumPerPage) {
@@ -162,12 +164,12 @@ module.exports = (function () {
                     } else {
                         resolve(moneys);
                     }
-                }).catch(function (err) {
+                }).catch((err) => {
                     reject(err);
                 });
             })(1); // start page = 1
         })
-        .catch(function (err) {
+        .catch((err) => {
             console.error('getMoneyInfo error !');
             console.error(err.stack);
         });
