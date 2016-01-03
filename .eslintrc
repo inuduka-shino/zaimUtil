@@ -1,4 +1,10 @@
 {
+    "env": {
+        "es6": true,
+        "node": true,
+        "browser": true
+    },
+    "extends": "eslint:recommended",
     "rules": {
         "indent": [
             2,
@@ -16,12 +22,20 @@
         "semi": [
             2,
             "always"
+        ],
+        "no-var": [
+            2
+        ],
+        "prefer-const": [
+            2
+        ],
+        "prefer-arrow-callback": [
+            2
+        ],
+        "strict": [2],
+        "eqeqeq": [
+            2
         ]
-    },
-    "env": {
-        "es6": true,
-        "node": true,
-        "browser": true
-    },
-    "extends": "eslint:recommended"
+    }
+
 }

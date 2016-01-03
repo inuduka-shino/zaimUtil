@@ -1,11 +1,15 @@
 /* config.js */
 
-module.exports = (function () {
+module.exports = (() => {
+    'use strict';
     return {
-        consumerKey: '',
-        consumerSecret: '',
-        requestTokenURL: 'https://api.zaim.net/v2/auth/request',
-        authorizeURL: 'https://auth.zaim.net/users/auth',
-        accessTokenURL: 'https://api.zaim.net/v2/auth/access'
+        consumerKey: 'consumerKey',
+        consumerSecret: 'consumerSecret',
+
+        accessToken: 'accessToken from getAccessToken.js',
+        accessTokenSecret: 'accessTokenSecret from getAccessToken.js',
+
+        serviceURL: 'https://zaim.net/'
+
     };
-}());
+})();

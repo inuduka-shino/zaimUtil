@@ -1,0 +1,16 @@
+{
+  "name": "zaimutil",
+  "version": "1.0.0",
+  "description": "",
+  "main": "init.js",
+  "dependencies": {
+    "node-ofx": "^0.2.0",
+    "oauth": "^0.9.14"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "test.js"
+  },
+  "author": "",
+  "license": "MIT"
+}
