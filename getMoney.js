@@ -6,14 +6,29 @@
         fs = require('./lib/fsUtil'),
         dateString = require('./lib/dateString'),
         makeZaim = require('./lib/zaimUtil.js');
-    let period;
+    let period,
+        targetMonth;
+
+    targetMonth = (() => {
+        // comand line argment
+        const target = process.argv[2];
+        if (/^[0-9]{4}-[0-9]{1,2}$/.test(target)) {
+            return target;
+        }
+        throw new Error(`argmennt is bad format!("YYYY-MM" !== "${target}")`);
+    })();
 
     period = (() => {
-        const nowDay = new Date();
+        let targetDay;
+        if (targetMonth === undefined) {
+            targetDay = new Date();
+        } else {
+            targetDay = new Date(targetMonth);
+        }
 
         return {
-            start: dateString.makeFirstDayString(nowDay),
-            end: dateString.makeLastDayString(nowDay)
+            start: dateString.makeFirstDayString(targetDay),
+            end: dateString.makeLastDayString(targetDay)
         };
     })();
 
@@ -25,7 +40,7 @@
         //console.dir(moneys);
         console.log('file writeing...');
         fileImage = JSON.stringify(moneys, null, '  ');
-        return fs.writeFile('moneyTest.txt', fileImage);
+        return fs.writeFile('work/moneyTest.txt', fileImage);
     })
     .then(() => {
         console.log('file wrote.');
