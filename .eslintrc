@@ -5,6 +5,30 @@
         "browser": true
     },
     "extends": "eslint:recommended",
+    "ecmaFeatures": {
+        "arrowFunctions": true,
+        "binaryLiterals": true,
+        "blockBindings": true,
+        "classes": true,
+        "defaultParams": false,
+        "destructuring": true,
+        "forOf": true,
+        "generators": true,
+        "modules": false,
+        "objectLiteralComputedProperties": true,
+        "objectLiteralDuplicateProperties": true,
+        "objectLiteralShorthandMethods": true,
+        "objectLiteralShorthandProperties": true,
+        "octalLiterals": true,
+        "regexUFlag": true,
+        "regexYFlag": true,
+        "spread": true,
+        "superInFunctions": true,
+        "templateStrings": true,
+        "unicodeCodePointEscapes": true,
+        "globalReturn": true,
+        "jsx": false
+    },
     "rules": {
         "indent": [
             2,
@@ -32,6 +56,8 @@
         "prefer-arrow-callback": [
             2
         ],
+        "no-unused-vars": [1],
+        "prefer-const": [1],
         "strict": [2],
         "eqeqeq": [
             2
