@@ -2,98 +2,22 @@
 
 (function () {
     'use strict';
-    const // config = require('./config'),
+    const
         fs = require('fs'),
-        sampleData = require('./ofxInfo/sample');
+        genOfxData = require('./lib/ofxUtil'),
+        sampleData = setSampleData();
 
     let ofxData;
 
-
-    function genOfxData(info) {
-        const ofx = require('node-ofx'),
-            dateString = require('./lib/dateString'),
-            ofxInfo = require('./ofxInfo/info'),
-            header = ofxInfo.header,
-            body = ofxInfo.body,
-            transList = [],
-            nowStr = dateString.makeDayString(new Date(), 'YYYYMMDDhhmmss');
-
-        let transIdBase,
-            transListCount = 0,
-            firstDate,
-            lastDate,
-            lastAmount;
-
-
-        transIdBase = 'ZAIM' + nowStr;
-        body.SIGNONMSGSRSV1.SONRS.DTSERVER =  + '[+9:JST]';
-        Object.assign(body.SIGNONMSGSRSV1.SONRS.FI, {
-            ORG: info.fiOrg,
-            FID: info.fiFid
-        });
-        Object.assign(body.BANKMSGSRSV1.STMTTRNRS.STMTRS.BANKACCTFROM, {
-            BANKID: info.bankID,
-            BRANCHID: info.bankCID,
-            ACCTID: info.acctID,
-            ACCTTYPE: info.acctType
-        });
-
-        function addTrans(transInfo) {
-            /* transInfo = {
-                id,
-                type, 'DEBIT' or 'CREDIT'
-
-            }
-            */
-            const tranDate = transInfo.DTPOSTED;
-            let transId;
-
-            if (transInfo.id === undefined) {
-                transId = transIdBase + ('000' + transListCount).slice(-4);
-            } else {
-                transId = transIdBase + transInfo.id;
-            }
-            transList.push({
-                TRNTYPE: transInfo.type,
-                DTPOSTED: tranDate,
-                TRNAMT: transInfo.amount,
-                FITID: transId,
-                NAME: transInfo.name,
-                MEMO: transInfo.memo
-            });
-            transListCount += 1;
-            if (tranDate < firstDate || firstDate === undefined ) {
-                firstDate = tranDate;
-            }
-            if (tranDate > lastDate || lastDate === undefined ) {
-                lastDate = tranDate;
-            }
-        }
-        function serialize() {
-            lastAmount = 99999;
-
-            body.BANKMSGSRSV1.STMTTRNRS.STMTRS.BANKTRANLIST.DTSTART = firstDate;
-            body.BANKMSGSRSV1.STMTTRNRS.STMTRS.BANKTRANLIST.DTEND = lastDate;
-
-            Array.prototype.push.apply(
-                body.BANKMSGSRSV1.STMTTRNRS.STMTRS.BANKTRANLIST.STMTTRN,
-                transList
-            );
-
-            body.BANKMSGSRSV1.STMTTRNRS.STMTRS.LEDGERBAL.BALAMT = String(lastAmount);
-            body.BANKMSGSRSV1.STMTTRNRS.STMTRS.LEDGERBAL.DTASOF = lastDate;
-
-            return ofx.serialize(header, body);
-        }
-
-        return {
-            addTrans: addTrans,
-            serialize: serialize
-        };
-    }
-
-    ofxData = genOfxData(sampleData);
-    sampleData.transactions.forEach((data) => {
+    ofxData = genOfxData({
+        fiOrg: 'ZAIM-INFORMATON',
+        fiFid: 'ZAIM0001',
+        bankID: 'ZAIM0001B001',
+        bankCID: 'BC001',
+        acctID: 'ACCT0001',
+        acctType: 'SAVINGS'
+    });
+    sampleData.forEach((data) => {
         ofxData.addTrans(data);
     });
 
@@ -108,5 +32,42 @@
             console.log('wrote!');
         }
     );
+
+    function setSampleData() {
+        return [
+            {
+                id: 'test00',
+                type: 'DEBIT',
+                date: '2016-01-14',
+                amount: -9001,
+                name: 'AC:T2',
+                memo: 'めもめも1'
+            },
+            {
+                id: 'test01',
+                type: 'DEBIT',
+                date: '2016-01-15',
+                amount: -101,
+                name: 'AC:X42',
+                memo: 'めもめも2'
+            },
+            {
+                id: 'test02',
+                type: 'CREDIT',
+                date: '2016-01-15',
+                amount: 101,
+                name: 'CT:A00',
+                memo: '入金'
+            },
+            {
+                id: 'test03',
+                type: 'DEBIT',
+                date: '2016-01-16',
+                amount: -6501,
+                name: 'AC:T2',
+                memo: 'めもめも3'
+            }
+        ];
+    }
 
 }());
