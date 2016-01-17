@@ -14,13 +14,15 @@
         const target = process.argv[2];
         if (/^[0-9]{4}-[0-9]{1,2}$/.test(target)) {
             return target;
+        } else if (target === undefined) {
+            return null;
         }
         throw new Error(`argmennt is bad format!("YYYY-MM" !== "${target}")`);
     })();
 
     period = (() => {
         let targetDay;
-        if (targetMonth === undefined) {
+        if (targetMonth === null) {
             targetDay = new Date();
         } else {
             targetDay = new Date(targetMonth);
