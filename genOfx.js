@@ -59,19 +59,28 @@
         // TODO: timestamp filename
         writeBackupPromise = fs.writeFile('work/moneyTest.txt', fileImage);
         moneys.forEach((moneyInfo) => {
+            let type,
+                amount;
             if (moneyInfo.mode === 'payment') {
-                ofxData.addTrans({
-                    id: 'ZAIM00A' + moneyInfo.id,
-                    type: 'DEBIT',
-                    date: moneyInfo.date,
-                    amount: -1 * Number(moneyInfo.amount),
-                    name: [moneyInfo.category_id, moneyInfo.genre_id].join('-'),
-                    memo: moneyInfo.id
-                });
+                type = 'DEBIT';
+                amount =  -1 * Number(moneyInfo.amount);
+            } else if  (moneyInfo.mode === 'income') {
+                type = 'CREDIT';
+                amount =  Number(moneyInfo.amount);
             } else {
+                console.log('------');
                 console.log('pass transaction:' + moneyInfo.id);
                 console.log('unkown mode:' + moneyInfo.mode);
+                return; // continue forEach
             }
+            ofxData.addTrans({
+                id: 'ZAIM00A' + moneyInfo.id,
+                type: type,
+                date: moneyInfo.date,
+                amount: amount,
+                name: [moneyInfo.category_id, moneyInfo.genre_id].join('-'),
+                memo: moneyInfo.id
+            });
         });
         return writeBackupPromise;
     })
