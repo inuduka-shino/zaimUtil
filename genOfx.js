@@ -7,6 +7,7 @@
         dateString = require('./lib/dateString'),
         makeZaim = require('./lib/zaimUtil'),
         genOfxData = require('./lib/ofxUtil'),
+        memo = require('./lib/memo.js')('./memo.json'),
         ofxData = genOfxData({
             fiOrg: 'ZAIM-INFORMATON',
             fiFid: 'ZAIM0001',
@@ -45,11 +46,53 @@
         };
     })();
 
+    function readOneline() {
+        const reader = require('readline').createInterface({
+            input: process.stdin,
+            output: process.stdout
+        });
+        return new Promise((resolve) => {
+            reader.on('line', (line) => {
+                reader.close();
+                resolve(line.trim());
+            });
+        });
+    }
+
     console.log('getMoney start');
-    makeZaim(config).setAccessToken({
-        accessToken: config.accessToken,
-        accessTokenSecret: config.accessTokenSecret
-    }).getMoney(period.start, period.end).then((moneys) => {
+    new Promise((resolve, reject) => {
+        const zaim = makeZaim(config).setAccessToken({
+            accessToken: config.accessToken,
+            accessTokenSecret: config.accessTokenSecret
+        });
+
+        // try access to zaim
+        zaim.getUser().then(() => {
+            resolve(zaim);
+        }).catch((err) => {
+            if (err.statusCode === 401) {
+                zaim.getAccessToken((url) => {
+                    console.log('以下のURLで認証し、Verifierコードを入手してください。');
+                    console.log(url);
+                    console.log('Input Verifier:');
+                    return readOneline();
+                }).then((newInfo) => {
+                    console.dir(newInfo);
+                    resolve(zaim.setAccessToken({
+                        accessToken: newInfo.accessToken,
+                        accessTokenSecret: newInfo.accessTokenSecret
+                    }));
+                });
+            } else {
+                reject(err);
+            }
+        });
+    })
+    .then((zaim) => {
+        console.log('get Money');
+        return zaim.getMoney(period.start, period.end);
+    })
+    .then((moneys) => {
         let fileImage,
             writeBackupPromise;
 
