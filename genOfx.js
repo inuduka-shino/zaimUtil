@@ -46,7 +46,10 @@
     })();
 
     console.log('getMoney start');
-    makeZaim(config).getMoney(period.start, period.end).then((moneys) => {
+    makeZaim(config).setAccessToken({
+        accessToken: config.accessToken,
+        accessTokenSecret: config.accessTokenSecret
+    }).getMoney(period.start, period.end).then((moneys) => {
         let fileImage,
             writeBackupPromise;
 
@@ -79,7 +82,7 @@
                 date: moneyInfo.date,
                 amount: amount,
                 name: [moneyInfo.category_id, moneyInfo.genre_id].join('-'),
-                memo: moneyInfo.id
+                memo: [moneyInfo.id, moneyInfo.place].join(' ')
             });
         });
         return writeBackupPromise;
