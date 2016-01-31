@@ -7,7 +7,7 @@
         dateString = require('./lib/dateString'),
         makeZaim = require('./lib/zaimUtil'),
         genOfxData = require('./lib/ofxUtil'),
-        memo = require('./lib/memo.js')('./memo.json'),
+        memoUtil = require('./lib/memo.js'),
         ofxData = genOfxData({
             fiOrg: 'ZAIM-INFORMATON',
             fiFid: 'ZAIM0001',
@@ -59,36 +59,67 @@
         });
     }
 
-    console.log('getMoney start');
-    new Promise((resolve, reject) => {
-        const zaim = makeZaim(config).setAccessToken({
-            accessToken: config.accessToken,
-            accessTokenSecret: config.accessTokenSecret
-        });
+    function genAccessableZaim() {
+        const zaim = makeZaim(config);
+        let memo0;
 
-        // try access to zaim
-        zaim.getUser().then(() => {
-            resolve(zaim);
-        }).catch((err) => {
-            if (err.statusCode === 401) {
-                zaim.getAccessToken((url) => {
-                    console.log('以下のURLで認証し、Verifierコードを入手してください。');
-                    console.log(url);
-                    console.log('Input Verifier:');
-                    return readOneline();
-                }).then((newInfo) => {
-                    console.dir(newInfo);
-                    resolve(zaim.setAccessToken({
-                        accessToken: newInfo.accessToken,
-                        accessTokenSecret: newInfo.accessTokenSecret
-                    }));
-                });
-            } else {
-                reject(err);
-            }
+        console.log('zailm access test start');
+        return new Promise((resolve, reject) => {
+            memoUtil('./memo.json').load()
+            .then((memo) => {
+                console.dir(memo.info);
+
+                if (memo.info.accessToken !== undefined && memo.info.accessToken !== undefined) {
+                    // try access to zaim
+                    memo0 = memo;
+                    return zaim.setAccessToken({
+                        accessToken: memo.info.accessToken,
+                        accessTokenSecret: memo.info.accessTokenSecret
+                    }).getUser();
+                } else {
+                    console.log('no memo');
+                    throw {
+                        memoError:  'no memo'
+                    };
+                }
+            })
+            .then(() => {
+                console.log('success to access with memo Info.');
+                resolve(zaim);
+            })
+            .catch((err) => {
+                console.log('error memo Access');
+                if (err.statusCode === 401 || err.memoError === 'no memo') {
+                    zaim.getAccessToken((url) => {
+                        console.log('以下のURLで認証し、Verifierコードを入手してください。');
+                        console.log(url);
+                        console.log('Input Verifier:');
+                        return readOneline();
+                    }).then((newInfo) => {
+                        console.log('get new token');
+                        console.dir(newInfo);
+                        memo0.info.accessToken = newInfo.accessToken;
+                        memo0.info.accessTokenSecret = newInfo.accessTokenSecret;
+                        //console.dir(memo0.info);
+                        memo0.save()
+                        .then(() =>  {
+                            console.log('memo saved.');
+                            resolve(zaim.setAccessToken({
+                                accessToken: newInfo.accessToken,
+                                accessTokenSecret: newInfo.accessTokenSecret
+                            }));
+                        });
+                    });
+                } else {
+                    reject(err);
+                }
+            });
+
         });
-    })
-    .then((zaim) => {
+    }
+
+
+    genAccessableZaim().then((zaim) => {
         console.log('get Money');
         return zaim.getMoney(period.start, period.end);
     })
