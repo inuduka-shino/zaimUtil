@@ -67,12 +67,9 @@
         return co(function *() {
             let memo,
                 status;
-            console.log('load memo start');
             memo = yield memoUtil('./memo.json').load();
-            console.dir(memo.info);
             if (memo.info.accessToken !== undefined && memo.info.accessToken !== undefined) {
                 // try access to zaim
-                console.log('try access by  token in memo file');
                 status = yield (
                     zaim.setAccessToken({
                         accessToken: memo.info.accessToken,
@@ -89,24 +86,22 @@
                     })
                 );
             } else {
-                console.log('no memo');
                 status = 'NoSetting';
             }
-            console.log(`status=${status}`);
+            // console.log(`status=${status}`);
             if (status === 'Success') {
                 return zaim;
             } else {
                 let newInfo;
 
                 newInfo = yield zaim.getAccessToken((url) => {
-                    console.log('以下のURLで認証し、Verifierコードを入手してください。');
-                    console.log(url);
-                    console.log('Input Verifier:');
+                    process.stdout.write([
+                        '以下のURLで認証し、Verifierコードを入手してください。\n',
+                        url,
+                        '\nInput Verifier:'
+                    ].join(''));
                     return readOneline();
                 });
-
-                console.log('get new token');
-                console.dir(newInfo);
 
                 memo.info.accessToken = newInfo.accessToken;
                 memo.info.accessTokenSecret = newInfo.accessTokenSecret;
@@ -121,15 +116,16 @@
     }
 
 
+    console.log('start');
     genAccessableZaim().then((zaim) => {
-        console.log('get Money');
+        console.log('load money info');
         return zaim.getMoney(period.start, period.end);
     })
     .then((moneys) => {
         let fileImage,
             writeBackupPromise;
 
-        console.log('OK');
+        console.log('loaded');
         console.log(moneys.length);
         //console.dir(moneys);
         console.log('file writeing...');
