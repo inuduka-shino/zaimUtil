@@ -96,11 +96,10 @@
                         console.log('Input Verifier:');
                         return readOneline();
                     }).then((newInfo) => {
-                        console.log('get new token');
-                        console.dir(newInfo);
+                        console.log('get new token --');
+                        console.dir(memo0);
                         memo0.info.accessToken = newInfo.accessToken;
                         memo0.info.accessTokenSecret = newInfo.accessTokenSecret;
-                        //console.dir(memo0.info);
                         memo0.save()
                         .then(() =>  {
                             console.log('memo saved.');
@@ -108,7 +107,13 @@
                                 accessToken: newInfo.accessToken,
                                 accessTokenSecret: newInfo.accessTokenSecret
                             }));
+                        })
+                        .catch((err) => {
+                            reject(err);
                         });
+                    })
+                    .catch((err) => {
+                        reject(err);
                     });
                 } else {
                     reject(err);
