@@ -38,13 +38,15 @@
         let targetDay;
         if (targetMonth === null) {
             targetDay = new Date();
+            targetMonth = dateString.makeDayString(targetDay, 'YYYY-MM');
         } else {
             targetDay = new Date(targetMonth);
         }
 
         return {
             start: dateString.makeFirstDayString(targetDay),
-            end: dateString.makeLastDayString(targetDay)
+            end: dateString.makeLastDayString(targetDay),
+            targetMonth: targetMonth
         };
     })();
 
@@ -62,12 +64,23 @@
     }
 
     function genAccessableZaim() {
+        // access可能なzaimオブジェクトをPromiseで返す
+        // 1. 以前のアクセストークンをmemo.jsonファイルから読む
+        // 2. getUserを実行しZAIMにアクセステスト
+        // 3. アクセスに失敗したら、getAccessTokenで新規アクセストークを取得
+        //    3-1. 標準出力に出力されたURLにアクセス
+        //    3-2. そのページで、アクセス認証操作。
+        //    3-3. 認証コード（Verifierコード）が表示される
+        //    3-4. 標準入録に認証コード（Verifierコード）を入力
+        //    3-5. 新規アクセストークンを取得（＋memo.jsonに保存）
+
         const zaim = makeZaim(config);
 
         return co(function *() {
             let memo,
                 status;
             memo = yield memoUtil('./memo.json').load();
+
             if (memo.info.accessToken !== undefined && memo.info.accessToken !== undefined) {
                 // try access to zaim
                 status = yield (
@@ -88,6 +101,7 @@
             } else {
                 status = 'NoSetting';
             }
+
             // console.log(`status=${status}`);
             if (status === 'Success') {
                 return zaim;
@@ -96,7 +110,7 @@
 
                 newInfo = yield zaim.getAccessToken((url) => {
                     process.stdout.write([
-                        '以下のURLで認証し、Verifierコードを入手してください。\n',
+                        '以下のURLで認証し、Verifierコードを入手しnewInfoてください。\n',
                         url,
                         '\nInput Verifier:'
                     ].join(''));
@@ -123,6 +137,7 @@
     })
     .then((moneys) => {
         let fileImage,
+            filename,
             writeBackupPromise;
 
         console.log('loaded');
@@ -131,8 +146,13 @@
         console.log('file writeing...');
         fileImage = JSON.stringify(moneys, null, '  ');
 
-        // TODO: timestamp filename
-        writeBackupPromise = fs.writeFile('work/moneyTest.txt', fileImage);
+        filename = (() => {
+            console.log(period.targetMonth);
+            const targetMonth = period.targetMonth.split('-').join('');
+            return ['work/money', targetMonth, '.txt'].join('');
+        })();
+
+        writeBackupPromise = fs.writeFile(filename, fileImage);
         moneys.forEach((moneyInfo) => {
             let type,
                 amount;
