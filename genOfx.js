@@ -152,7 +152,7 @@
             return ['work/money', targetMonth, '.txt'].join('');
         })();
 
-        writeBackupPromise = fs.writeFile(filename, fileImage);
+        writeBackupPromise = fs.writeOnlyFile(filename, fileImage);
         moneys.forEach((moneyInfo) => {
             let type,
                 amount;
