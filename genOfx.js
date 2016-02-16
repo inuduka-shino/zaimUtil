@@ -135,7 +135,17 @@
 
 
         // zaim から取引情報取得
-        moneys = yield zaim.getMoney(period.start, period.end);
+        //moneys = yield zaim.getMoney(period.start, period.end);
+        function arrayConcat(a, b) {
+            return Array.prototype.push.apply(a, b);
+        }
+        moneys = [];
+        zaim.zaimMoneyStream(period.start, period.end).on('data',(mns) => {
+            console.log('jStream data event: ' + mns.length);
+            arrayConcat(moneys, mns);
+        }).on('end', ()=> {
+            console.log('money readed. ' + moneys.length);
+        });
         console.log('loaded');
         // console.log(moneys.length);
 
