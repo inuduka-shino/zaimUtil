@@ -9,48 +9,10 @@
         dateString = require('./lib/dateString'),
         makeZaim = require('./lib/zaimUtil'),
         genOfxData = require('./lib/ofxUtil'),
-        memoUtil = require('./lib/memo.js'),
-        ofxData = genOfxData({
-            fiOrg: 'ZAIM-INFORMATON',
-            fiFid: 'ZAIM0001',
-            bankID: 'ZAIM0001B001',
-            bankCID: 'BC001',
-            acctID: 'ACCT0001',
-            acctType: 'SAVINGS'
-        });
-
-    let
-        period,
-        targetMonth;
-
-    targetMonth = (() => {
-        // comand line argment
-        const target = process.argv[2];
-        if (/^[0-9]{4}-[0-9]{1,2}$/.test(target)) {
-            return target;
-        } else if (target === undefined) {
-            return null;
-        }
-        throw new Error(`argmennt is bad format!("YYYY-MM" !== "${target}")`);
-    })();
-
-    period = (() => {
-        let targetDay;
-        if (targetMonth === null) {
-            targetDay = new Date();
-            targetMonth = dateString.makeDayString(targetDay, 'YYYY-MM');
-        } else {
-            targetDay = new Date(targetMonth);
-        }
-
-        return {
-            start: dateString.makeFirstDayString(targetDay),
-            end: dateString.makeLastDayString(targetDay),
-            targetMonth: targetMonth
-        };
-    })();
+        memoUtil = require('./lib/memo.js');
 
     function readOneline() {
+        // 一行入力処理
         const reader = require('readline').createInterface({
             input: process.stdin,
             output: process.stdout
@@ -133,68 +95,118 @@
     co(function *() {
         let
             zaim,
-            moneys;
+            moneys,
+            period,
+            ofxData;
 
         console.log('start');
         zaim = yield genAccessableZaim();
+
+        { // コマンド引数から対象期間を決定
+            let targetMonth;
+
+            targetMonth = (() => {
+                // comand line argment
+                const target = process.argv[2];
+                if (/^[0-9]{4}-[0-9]{1,2}$/.test(target)) {
+                    return target;
+                } else if (target === undefined) {
+                    return null;
+                }
+                throw new Error(`argmennt is bad format!("YYYY-MM" !== "${target}")`);
+            })();
+
+            period = (() => {
+                let targetDay;
+                if (targetMonth === null) {
+                    targetDay = new Date();
+                    targetMonth = dateString.makeDayString(targetDay, 'YYYY-MM');
+                } else {
+                    targetDay = new Date(targetMonth);
+                }
+
+                return {
+                    start: dateString.makeFirstDayString(targetDay),
+                    end: dateString.makeLastDayString(targetDay),
+                    targetMonth: targetMonth
+                };
+            })();
+        }
+
+
+        // zaim から取引情報取得
         moneys = yield zaim.getMoney(period.start, period.end);
         console.log('loaded');
-        console.log(moneys.length);
+        // console.log(moneys.length);
 
         { // zaim data backup
             let fileImage,
                 filename;
 
             //console.dir(moneys);
-            console.log('file writeing...');
+            //console.log('backuup file writeing...');
             fileImage = JSON.stringify(moneys, null, '  ');
 
             filename = (() => {
-                console.log(period.targetMonth);
+                // console.log(period.targetMonth);
                 const targetMonth = period.targetMonth.split('-').join('');
                 return ['work/money', targetMonth, '.txt'].join('');
             })();
 
-            yield fs.writeOnlyFile(filename, fileImage);
+            filename = yield fs.writeOnlyFile(filename, fileImage);
 
-            console.log('backuup file wrote.');
+            console.log(`backuup file wrote. (${filename})`);
         }
 
-        moneys.forEach((moneyInfo) => {
-            let type,
-                amount;
-            if (moneyInfo.mode === 'payment') {
-                type = 'DEBIT';
-                amount =  -1 * Number(moneyInfo.amount);
-            } else if  (moneyInfo.mode === 'income') {
-                type = 'CREDIT';
-                amount =  Number(moneyInfo.amount);
-            } else {
-                console.log('------');
-                console.log('pass transaction:' + moneyInfo.id);
-                console.log('unkown mode:' + moneyInfo.mode);
-                return; // continue forEach
-            }
-            ofxData.addTrans({
-                id: 'ZAIM00A' + moneyInfo.id,
-                type: type,
-                date: moneyInfo.date,
-                amount: amount,
-                name: [moneyInfo.category_id, moneyInfo.genre_id].join('-'),
-                memo: [moneyInfo.id, moneyInfo.place].join(' ')
+        {  // generate ofxData.
+            ofxData = genOfxData({
+                fiOrg: 'ZAIM-INFORMATON',
+                fiFid: 'ZAIM0001',
+                bankID: 'ZAIM0001B001',
+                bankCID: 'BC001',
+                acctID: 'ACCT0001',
+                acctType: 'SAVINGS'
             });
-        });
 
-        yield fs.writeFile(
-            'ofxInfo/Output.ofx',
-            ofxData.serialize()
-        );
-        console.log('ofx fiel wrote!');
+            moneys.forEach((moneyInfo) => {
+                let type,
+                    amount;
+                if (moneyInfo.mode === 'payment') {
+                    type = 'DEBIT';
+                    amount =  -1 * Number(moneyInfo.amount);
+                } else if  (moneyInfo.mode === 'income') {
+                    type = 'CREDIT';
+                    amount =  Number(moneyInfo.amount);
+                } else {
+                    console.log('------');
+                    console.log('pass transaction:' + moneyInfo.id);
+                    console.log('unkown mode:' + moneyInfo.mode);
+                    return; // continue forEach
+                }
+                ofxData.addTrans({
+                    id: 'ZAIM00A' + moneyInfo.id,
+                    type: type,
+                    date: moneyInfo.date,
+                    amount: amount,
+                    name: [moneyInfo.category_id, moneyInfo.genre_id].join('-'),
+                    memo: [moneyInfo.id, moneyInfo.place].join(' ')
+                });
+            });
+        }
 
-    })
-    .catch((err) => {
-        console.error(err);
-        if (err.stack !== undefined) {
+        {  // write ofx file.
+            yield fs.writeFile(
+                'ofxInfo/Output.ofx',
+                ofxData.serialize()
+            );
+            console.log('ofx file wrote!');
+        }
+
+    }).catch((err) => {
+        console.error('*** ERROR ***');
+        if (err.stack === undefined) {
+            console.error(err);
+        } else {
             console.error(err.stack);
         }
     });
