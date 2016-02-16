@@ -95,9 +95,11 @@
     co(function *() {
         let
             zaim,
-            moneys,
+            moneyStream,
             period,
-            ofxData;
+
+            wroteBackupFile,
+            wroteOfxFile;
 
         console.log('start');
         zaim = yield genAccessableZaim();
@@ -136,40 +138,47 @@
 
         // zaim から取引情報取得
         //moneys = yield zaim.getMoney(period.start, period.end);
-        function arrayConcat(a, b) {
-            return Array.prototype.push.apply(a, b);
-        }
-        moneys = [];
-        zaim.zaimMoneyStream(period.start, period.end).on('data',(mns) => {
+
+        moneyStream = zaim.zaimMoneyStream(period.start, period.end);
+
+        moneyStream.on('data',(mns) => {
             console.log('jStream data event: ' + mns.length);
-            arrayConcat(moneys, mns);
         }).on('end', ()=> {
-            console.log('money readed. ' + moneys.length);
+            console.log('loaded');
         });
-        console.log('loaded');
-        // console.log(moneys.length);
 
-        { // zaim data backup
-            let fileImage,
-                filename;
+        wroteBackupFile = new Promise((resolve) => {
+            // zaim data backup
+            const
+                moneys= [];
 
-            //console.dir(moneys);
-            //console.log('backuup file writeing...');
-            fileImage = JSON.stringify(moneys, null, '  ');
-
-            filename = (() => {
-                // console.log(period.targetMonth);
-                const targetMonth = period.targetMonth.split('-').join('');
-                return ['work/money', targetMonth, '.txt'].join('');
-            })();
-
-            filename = yield fs.writeOnlyFile(filename, fileImage);
-
+            moneyStream.on('data',(mns) => {
+                mns.forEach((money)=> {
+                    moneys.push(money);
+                });
+            }).on('end',  () => {
+                resolve({
+                    image: JSON.stringify(moneys, null, '  '),
+                    path: (() => {
+                        // console.log(period.targetMonth);
+                        const targetMonth = period.targetMonth.split('-').join('');
+                        return ['work/money', targetMonth, '.txt'].join('');
+                    })()
+                });
+            });
+        }).then((fileInfo) => {
+            return fs.writeOnlyFile(fileInfo.path, fileInfo.image);
+        }).catch((err) => {
+            throw err;
+        });
+        wroteBackupFile.then((filename) =>  {
             console.log(`backuup file wrote. (${filename})`);
-        }
+        });
 
-        {  // generate ofxData.
-            ofxData = genOfxData({
+
+        wroteOfxFile = new Promise((resolve) => {
+            // generate ofxData.
+            const ofxData = genOfxData({
                 fiOrg: 'ZAIM-INFORMATON',
                 fiFid: 'ZAIM0001',
                 bankID: 'ZAIM0001B001',
@@ -178,39 +187,52 @@
                 acctType: 'SAVINGS'
             });
 
-            moneys.forEach((moneyInfo) => {
-                let type,
-                    amount;
-                if (moneyInfo.mode === 'payment') {
-                    type = 'DEBIT';
-                    amount =  -1 * Number(moneyInfo.amount);
-                } else if  (moneyInfo.mode === 'income') {
-                    type = 'CREDIT';
-                    amount =  Number(moneyInfo.amount);
-                } else {
-                    console.log('------');
-                    console.log('pass transaction:' + moneyInfo.id);
-                    console.log('unkown mode:' + moneyInfo.mode);
-                    return; // continue forEach
-                }
-                ofxData.addTrans({
-                    id: 'ZAIM00A' + moneyInfo.id,
-                    type: type,
-                    date: moneyInfo.date,
-                    amount: amount,
-                    name: [moneyInfo.category_id, moneyInfo.genre_id].join('-'),
-                    memo: [moneyInfo.id, moneyInfo.place].join(' ')
-                });
-            });
-        }
 
-        {  // write ofx file.
-            yield fs.writeFile(
+            moneyStream.on('data',(mns) => {
+                mns.forEach((moneyInfo) => {
+                    let type,
+                        amount;
+                    if (moneyInfo.mode === 'payment') {
+                        type = 'DEBIT';
+                        amount =  -1 * Number(moneyInfo.amount);
+                    } else if  (moneyInfo.mode === 'income') {
+                        type = 'CREDIT';
+                        amount =  Number(moneyInfo.amount);
+                    } else {
+                        console.log('------');
+                        console.log('pass transaction:' + moneyInfo.id);
+                        console.log('unkown mode:' + moneyInfo.mode);
+                        return; // continue forEach
+                    }
+                    ofxData.addTrans({
+                        id: 'ZAIM00A' + moneyInfo.id,
+                        type: type,
+                        date: moneyInfo.date,
+                        amount: amount,
+                        name: [moneyInfo.category_id, moneyInfo.genre_id].join('-'),
+                        memo: [moneyInfo.id, moneyInfo.place].join(' ')
+                    });
+                });
+            }).on('end', ()=> {
+                resolve(ofxData);
+            });
+        })
+        .then((ofxData) => {
+            // write ofx file.
+            return  fs.writeFile(
                 'ofxInfo/Output.ofx',
                 ofxData.serialize()
             );
+        }).catch((err) => {
+            throw err;
+        });
+
+        wroteOfxFile.then(() =>  {
             console.log('ofx file wrote!');
-        }
+        });
+
+        yield Promise.all([wroteBackupFile, wroteOfxFile]);
+        console.log('compleated.');
 
     }).catch((err) => {
         console.error('*** ERROR ***');
