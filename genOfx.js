@@ -129,30 +129,37 @@
         });
     }
 
+    // main
+    co(function *() {
+        let
+            zaim,
+            moneys;
 
-    console.log('start');
-    genAccessableZaim().then((zaim) => {
-        console.log('load money info');
-        return zaim.getMoney(period.start, period.end);
-    })
-    .then((moneys) => {
-        let fileImage,
-            filename,
-            writeBackupPromise;
-
+        console.log('start');
+        zaim = yield genAccessableZaim();
+        moneys = yield zaim.getMoney(period.start, period.end);
         console.log('loaded');
         console.log(moneys.length);
-        //console.dir(moneys);
-        console.log('file writeing...');
-        fileImage = JSON.stringify(moneys, null, '  ');
 
-        filename = (() => {
-            console.log(period.targetMonth);
-            const targetMonth = period.targetMonth.split('-').join('');
-            return ['work/money', targetMonth, '.txt'].join('');
-        })();
+        { // zaim data backup
+            let fileImage,
+                filename;
 
-        writeBackupPromise = fs.writeOnlyFile(filename, fileImage);
+            //console.dir(moneys);
+            console.log('file writeing...');
+            fileImage = JSON.stringify(moneys, null, '  ');
+
+            filename = (() => {
+                console.log(period.targetMonth);
+                const targetMonth = period.targetMonth.split('-').join('');
+                return ['work/money', targetMonth, '.txt'].join('');
+            })();
+
+            yield fs.writeOnlyFile(filename, fileImage);
+
+            console.log('backuup file wrote.');
+        }
+
         moneys.forEach((moneyInfo) => {
             let type,
                 amount;
@@ -177,17 +184,13 @@
                 memo: [moneyInfo.id, moneyInfo.place].join(' ')
             });
         });
-        return writeBackupPromise;
-    })
-    .then(() => {
-        console.log('backuup file wrote.');
-        return fs.writeFile(
+
+        yield fs.writeFile(
             'ofxInfo/Output.ofx',
             ofxData.serialize()
         );
-    })
-    .then(() => {
         console.log('ofx fiel wrote!');
+
     })
     .catch((err) => {
         console.error(err);
