@@ -140,6 +140,7 @@
         //moneys = yield zaim.getMoney(period.start, period.end);
 
         moneyStream = zaim.zaimMoneyStream(period.start, period.end);
+        console.log([period.start, period.end].join(' - '));
 
         moneyStream.on('data',(mns) => {
             console.log('jStream data event: ' + mns.length);
