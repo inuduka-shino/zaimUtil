@@ -11,6 +11,37 @@
         genOfxData = require('./lib/ofxUtil'),
         memoUtil = require('./lib/memo.js');
 
+
+    function genPeriod() {
+        // コマンド引数から対象期間を決定
+
+        let targetMonth, // "YYYY-MM" string
+            targetDay;   // DateObject
+
+        // comand line argment
+        const target = process.argv[2];
+        if (/^[0-9]{4}-[0-9]{1,2}$/.test(target)) {
+            targetMonth = target;
+        } else if (target === undefined) {
+            targetMonth = null;
+        } else {
+            throw new Error(`argmennt is bad format!("YYYY-MM" !== "${target}")`);
+        }
+
+        if (targetMonth === null) {
+            targetDay = new Date();
+            targetMonth = dateString.makeDayString(targetDay, 'YYYY-MM');
+        } else {
+            targetDay = new Date(targetMonth);
+        }
+
+        return {
+            start: dateString.makeFirstDayString(targetDay),
+            end: dateString.makeLastDayString(targetDay),
+            targetMonth: targetMonth
+        };
+    }
+
     function readOneline() {
         // 一行入力処理
         const reader = require('readline').createInterface({
@@ -91,94 +122,40 @@
         });
     }
 
-    // main
-    co(function *() {
-        let
-            zaim,
-            moneyStream,
-            period,
 
-            wroteBackupFile,
-            wroteOfxFile;
-
-        console.log('start');
-        zaim = yield genAccessableZaim();
-
-        { // コマンド引数から対象期間を決定
-            let targetMonth;
-
-            targetMonth = (() => {
-                // comand line argment
-                const target = process.argv[2];
-                if (/^[0-9]{4}-[0-9]{1,2}$/.test(target)) {
-                    return target;
-                } else if (target === undefined) {
-                    return null;
-                }
-                throw new Error(`argmennt is bad format!("YYYY-MM" !== "${target}")`);
-            })();
-
-            period = (() => {
-                let targetDay;
-                if (targetMonth === null) {
-                    targetDay = new Date();
-                    targetMonth = dateString.makeDayString(targetDay, 'YYYY-MM');
-                } else {
-                    targetDay = new Date(targetMonth);
-                }
-
-                return {
-                    start: dateString.makeFirstDayString(targetDay),
-                    end: dateString.makeLastDayString(targetDay),
-                    targetMonth: targetMonth
-                };
-            })();
-        }
-
-
-        // zaim から取引情報取得
-        //moneys = yield zaim.getMoney(period.start, period.end);
-
-        moneyStream = zaim.zaimMoneyStream(period.start, period.end);
-        console.log([period.start, period.end].join(' - '));
-
-        moneyStream.on('data',(mns) => {
-            console.log('jStream data event: ' + mns.length);
-        }).on('end', ()=> {
-            console.log('loaded');
-        });
-
-        wroteBackupFile = new Promise((resolve) => {
+    function writeBackupFile (period, moneyStream) {
+        return co(function *() {
             // zaim data backup
-            const
-                moneys= [];
+            const moneys= [];
+            let fileImage,
+                filename,
+                lastFilename;
 
-            moneyStream.on('data',(mns) => {
-                mns.forEach((money)=> {
-                    moneys.push(money);
-                });
-            }).on('end',  () => {
-                resolve({
-                    image: JSON.stringify(moneys, null, '  '),
-                    path: (() => {
-                        // console.log(period.targetMonth);
-                        const targetMonth = period.targetMonth.split('-').join('');
-                        return ['work/money', targetMonth, '.txt'].join('');
-                    })()
-                });
+            filename = (() => {
+                // console.log(period.targetMonth);
+                const targetMonth = period.targetMonth.split('-').join('');
+                return ['work/money', targetMonth, '.txt'].join('');
+            })();
+
+            fileImage = yield new Promise((resolve) => {
+                moneyStream
+                    .on('data',(mns) => {
+                        mns.forEach((money)=> {
+                            moneys.push(money);
+                        });
+                    })
+                    .on('end',  () => {
+                        resolve( JSON.stringify(moneys, null, '  '));
+                    });
             });
-        }).then((fileInfo) => {
-            return fs.writeOnlyFile(fileInfo.path, fileInfo.image);
-        }).catch((err) => {
-            throw err;
+            lastFilename = yield fs.writeOnlyFile(filename, fileImage);
+            console.log(`backuup file wrote. (${lastFilename})`);
         });
-        wroteBackupFile.then((filename) =>  {
-            console.log(`backuup file wrote. (${filename})`);
-        });
+    }
 
 
-        wroteOfxFile = new Promise((resolve) => {
-            // generate ofxData.
+    function writeOfxFile (moneyStream) {
+        return co(function* (){
             const ofxData = genOfxData({
                 fiOrg: 'ZAIM-INFORMATON',
                 fiFid: 'ZAIM0001',
@@ -187,9 +164,10 @@
                 acctID: 'ACCT0001',
                 acctType: 'SAVINGS'
             });
-
+            let count = 0;
 
             moneyStream.on('data',(mns) => {
+                count += mns.length;
                 mns.forEach((moneyInfo) => {
                     let type,
                         amount;
@@ -214,25 +192,43 @@
                         memo: [moneyInfo.id, moneyInfo.place].join(' ')
                     });
                 });
-            }).on('end', ()=> {
-                resolve(ofxData);
             });
-        })
-        .then((ofxData) => {
+            yield new Promise((resolve) => {
+                moneyStream.on('end', ()=> {
+                    resolve();
+                });
+            });
+            console.log('total %d件', count);
             // write ofx file.
-            return  fs.writeFile(
+            yield fs.writeFile(
                 'ofxInfo/Output.ofx',
                 ofxData.serialize()
             );
-        }).catch((err) => {
-            throw err;
-        });
-
-        wroteOfxFile.then(() =>  {
             console.log('ofx file wrote!');
         });
+    }
 
-        yield Promise.all([wroteBackupFile, wroteOfxFile]);
+    // main
+    co(function *() {
+        let
+            zaim,
+            moneyStream,
+            period;
+
+        console.log('start');
+        zaim = yield genAccessableZaim();
+        period =genPeriod();
+
+        // zaim から取引情報取得
+        //moneys = yield zaim.getMoney(period.start, period.end);
+        console.log([period.start, period.end].join(' - '));
+        moneyStream = zaim.zaimMoneyStream(period.start, period.end);
+
+        yield Promise.all([
+            writeOfxFile(moneyStream),
+            writeBackupFile(period, moneyStream)
+        ]);
+
         console.log('compleated.');
 
     }).catch((err) => {
