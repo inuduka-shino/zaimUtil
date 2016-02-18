@@ -12,6 +12,20 @@
         memoUtil = require('./lib/memo.js');
 
 
+    function tryReject(reject, cb) {
+        return  function () {
+            try {
+                cb.apply(null, arguments);
+            } catch (err) {
+                reject(err);
+            }
+
+        };
+    }
+    function generateTryBlock(reject) {
+        return tryReject.bind(null, reject);
+    }
+
     function genPeriod() {
         // コマンド引数から対象期間を決定
 
@@ -49,10 +63,12 @@
             output: process.stdout
         });
         return new Promise((resolve) => {
-            reader.on('line', (line) => {
+            const tryBlock = generateTryBlock(resolve);
+
+            reader.on('line', tryBlock((line) => {
                 reader.close();
                 resolve(line.trim());
-            });
+            }));
         });
     }
 
@@ -137,16 +153,17 @@
                 return ['work/money', targetMonth, '.txt'].join('');
             })();
 
-            fileImage = yield new Promise((resolve) => {
+            fileImage = yield new Promise((resolve, reject) => {
+                const tryBlock = generateTryBlock(reject);
                 moneyStream
-                    .on('data',(mns) => {
+                    .on('data', tryBlock((mns) => {
                         mns.forEach((money)=> {
                             moneys.push(money);
                         });
-                    })
-                    .on('end',  () => {
+                    }))
+                    .on('end',  tryBlock(() => {
                         resolve( JSON.stringify(moneys, null, '  '));
-                    });
+                    }));
             });
             lastFilename = yield fs.writeOnlyFile(filename, fileImage);
             console.log(`backuup file wrote. (${lastFilename})`);
@@ -166,34 +183,35 @@
             });
             let count = 0;
 
-            moneyStream.on('data',(mns) => {
-                count += mns.length;
-                mns.forEach((moneyInfo) => {
-                    let type,
-                        amount;
-                    if (moneyInfo.mode === 'payment') {
-                        type = 'DEBIT';
-                        amount =  -1 * Number(moneyInfo.amount);
-                    } else if  (moneyInfo.mode === 'income') {
-                        type = 'CREDIT';
-                        amount =  Number(moneyInfo.amount);
-                    } else {
-                        console.log('------');
-                        console.log('pass transaction:' + moneyInfo.id);
-                        console.log('unkown mode:' + moneyInfo.mode);
-                        return; // continue forEach
-                    }
-                    ofxData.addTrans({
-                        id: 'ZAIM00A' + moneyInfo.id,
-                        type: type,
-                        date: moneyInfo.date,
-                        amount: amount,
-                        name: [moneyInfo.category_id, moneyInfo.genre_id].join('-'),
-                        memo: [moneyInfo.id, moneyInfo.place].join(' ')
+            yield new Promise((resolve, reject) => {
+                const tryBlock = generateTryBlock(reject);
+                moneyStream.on('data',tryBlock((mns) => {
+                    count += mns.length;
+                    mns.forEach((moneyInfo) => {
+                        let type,
+                            amount;
+                        if (moneyInfo.mode === 'payment') {
+                            type = 'DEBIT';
+                            amount =  -1 * Number(moneyInfo.amount);
+                        } else if  (moneyInfo.mode === 'income') {
+                            type = 'CREDIT';
+                            amount =  Number(moneyInfo.amount);
+                        } else {
+                            console.log('------');
+                            console.log('pass transaction:' + moneyInfo.id);
+                            console.log('unkown mode:' + moneyInfo.mode);
+                            return; // continue forEach
+                        }
+                        ofxData.addTrans({
+                            id: 'ZAIM00A' + moneyInfo.id,
+                            type: type,
+                            date: moneyInfo.date,
+                            amount: amount,
+                            name: [moneyInfo.category_id, moneyInfo.genre_id].join('-'),
+                            memo: [moneyInfo.id, moneyInfo.place].join(' ')
+                        });
                     });
-                });
-            });
-            yield new Promise((resolve) => {
+                }));
                 moneyStream.on('end', ()=> {
                     resolve();
                 });
