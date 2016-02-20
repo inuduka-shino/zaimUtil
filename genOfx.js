@@ -142,10 +142,10 @@
     function writeBackupFile (period, moneyStream) {
         return co(function *() {
             // zaim data backup
-            const moneys= [];
-            let fileImage,
+            const JSONStream = require('JSONStream');
+            let
                 filename,
-                lastFilename;
+                strm;
 
             filename = (() => {
                 // console.log(period.targetMonth);
@@ -153,20 +153,19 @@
                 return ['work/money', targetMonth, '.txt'].join('');
             })();
 
-            fileImage = yield new Promise((resolve, reject) => {
-                const tryBlock = generateTryBlock(reject);
-                moneyStream
-                    .on('data', tryBlock((mns) => {
-                        mns.forEach((money)=> {
-                            moneys.push(money);
-                        });
-                    }))
-                    .on('end',  tryBlock(() => {
-                        resolve( JSON.stringify(moneys, null, '  '));
-                    }));
+            strm = yield fs.createWriteStreamFromNewFile(filename);
+
+            moneyStream
+                .pipe(JSONStream.stringify())
+                .pipe(strm);
+
+            yield new Promise((resolve) => {
+                strm
+                    .on('finish',  () => {
+                        resolve();
+                    });
             });
-            lastFilename = yield fs.writeOnlyFile(filename, fileImage);
-            console.log(`backuup file wrote. (${lastFilename})`);
+            console.log(`backuup file wrote. ` + strm.path);
         });
     }
 
@@ -185,31 +184,29 @@
 
             yield new Promise((resolve, reject) => {
                 const tryBlock = generateTryBlock(reject);
-                moneyStream.on('data',tryBlock((mns) => {
-                    count += mns.length;
-                    mns.forEach((moneyInfo) => {
-                        let type,
-                            amount;
-                        if (moneyInfo.mode === 'payment') {
-                            type = 'DEBIT';
-                            amount =  -1 * Number(moneyInfo.amount);
-                        } else if  (moneyInfo.mode === 'income') {
-                            type = 'CREDIT';
-                            amount =  Number(moneyInfo.amount);
-                        } else {
-                            console.log('------');
-                            console.log('pass transaction:' + moneyInfo.id);
-                            console.log('unkown mode:' + moneyInfo.mode);
-                            return; // continue forEach
-                        }
-                        ofxData.addTrans({
-                            id: 'ZAIM00A' + moneyInfo.id,
-                            type: type,
-                            date: moneyInfo.date,
-                            amount: amount,
-                            name: [moneyInfo.category_id, moneyInfo.genre_id].join('-'),
-                            memo: [moneyInfo.id, moneyInfo.place].join(' ')
-                        });
+                moneyStream.on('data',tryBlock((moneyInfo) => {
+                    count += 1;
+                    let type,
+                        amount;
+                    if (moneyInfo.mode === 'payment') {
+                        type = 'DEBIT';
+                        amount =  -1 * Number(moneyInfo.amount);
+                    } else if  (moneyInfo.mode === 'income') {
+                        type = 'CREDIT';
+                        amount =  Number(moneyInfo.amount);
+                    } else {
+                        console.log('------');
+                        console.log('pass transaction:' + moneyInfo.id);
+                        console.log('unkown mode:' + moneyInfo.mode);
+                        return; // continue forEach
+                    }
+                    ofxData.addTrans({
+                        id: 'ZAIM00A' + moneyInfo.id,
+                        type: type,
+                        date: moneyInfo.date,
+                        amount: amount,
+                        name: [moneyInfo.category_id, moneyInfo.genre_id].join('-'),
+                        memo: [moneyInfo.id, moneyInfo.place].join(' ')
                     });
                 }));
                 moneyStream.on('end', ()=> {
