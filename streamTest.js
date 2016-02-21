@@ -29,8 +29,9 @@
     }
 
     console.log('timer test');
-    timer(1000).then(() => {
+    timer(1).then(() => {
         console.log('delay output');
+        throw new Error('jump');
     }).then(() => {
         console.log('nomal readable stream');
         const source = ['A', 'BB', 'CcC'];
@@ -81,7 +82,98 @@
         };
         rStream.pipe(wStream);
         return finishPromise(wStream);
-    });
+    }).catch((err) => {
+        if (err.message === 'jump') {
+            console.log(err.message);
+        } else {
+            throw err;
+        }
+    }).then(() => {
+        console.log('concat stream');
+        const wStream = genWStream();
+        const source = ['1', '2', '3'];
+        const source2 = ['A', 'B', 'C'];
+        const rStream = new stream.Readable({
+            objectMode: true
+        });
+        const rStream2 = new stream.Readable({
+            objectMode: true
+        });
+        rStream._read = function () {
+            rStream.push(source.shift()||null);
+        };
+        rStream2._read = function () {
+            rStream2.push(source2.shift()||null);
+        };
+        const tStream = new stream.Transform({
+            objectMode: true
+        });
+        tStream._transform = function (chunk, encode, cb) {
+            tStream.push(chunk);
+            cb();
+        };
+        tStream._flush = function (cb) {
+            cb();
+        };
 
+        tStream.pipe(wStream);
+
+        rStream.pipe(tStream,  { end: false });
+        rStream2.pipe(tStream,  { end: false });
+
+        rStream2.on('end', () => {
+            tStream.end('END');
+        });
+
+        return finishPromise(wStream);
+
+    }).then(() => {
+        console.log('translate stream');
+        const wStream = genWStream();
+        const rStream = new stream.Readable({
+            objectMode: true
+        });
+        const source = ['1', '2', '3', 'AAA'];
+        rStream._read = function () {
+            rStream.push(source.shift()||null);
+        };
+
+        function counterStream () {
+            const
+                tStream = new stream.Transform({
+                    objectMode: true
+                }),
+                cntPrms = new Promise((resolve) => {
+                    let count = 0;
+                    tStream._transform = function (chunk, encoding, callback) {
+                        //console.dir(chunk);
+                        //console.log(`encoding= ${encoding}`);
+                        tStream.push(chunk);
+                        count += 1;
+                        callback();
+                    };
+                    tStream._flush = function (cb) {
+                        resolve(count);
+                        cb();
+                    };
+                });
+            return {
+                stream: tStream,
+                promise: cntPrms
+            };
+        }
+
+        const counter = counterStream();
+        counter.promise.then((cnt) => {
+            console.log(`count = ${cnt}`);
+        });
+        rStream.pipe(counter.stream).pipe(wStream);
+
+        return finishPromise(wStream);
+    }).then(() => {
+        console.log('test End');
+    }).catch((err) => {
+        console.log(err.stack);
+    });
 
 })();

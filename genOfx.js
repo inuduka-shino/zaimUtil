@@ -239,11 +239,22 @@
         console.log([period.start, period.end].join(' - '));
         moneyStream = zaim.zaimMoneyStream(period.start, period.end);
 
+        yield new Promise((resolve, reject) => {
+            moneyStream.on('data', (chunk) => {
+                try {
+                    console.dir(chunk);
+                    //console.log('data:' + chunk.length);
+                } catch (err) {
+                    reject(err);
+                }
+            });
+        });
+        /*
         yield Promise.all([
-            writeOfxFile(moneyStream),
+            //writeOfxFile(moneyStream),
             writeBackupFile(period, moneyStream)
         ]);
-
+        */
         console.log('compleated.');
 
     }).catch((err) => {
