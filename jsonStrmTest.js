@@ -15,10 +15,15 @@
             objectMode: true
         });
         wStream._write = function (chunk, encoding, callback) {
-            console.log('*chunk* ---');
-            chunk.forEach( (obj) => {
-                console.dir(obj);
-            });
+            if (chunk.forEach !== undefined) {
+                console.log('*chunk Array* ---');
+                chunk.forEach( (obj) => {
+                    console.dir(obj);
+                });
+            } else {
+                console.log('*chunk Object* ---');
+                console.dir(chunk);
+            }
             console.log('---- ---');
             callback();
         };
@@ -49,6 +54,7 @@
 
     console.log('timer test');
     timer(1).then(() => {
+        console.log('object stream test');
         const
             sourceObjects = new stream.Readable({objectMode: true}),
             sources = [[{n:1},{n:2}], [{n:3},{n:4},{n:5}],[{n:6}]];
@@ -59,9 +65,10 @@
         sourceObjects.pipe(wStream);
         return finishPromise(wStream);
     }).then(() => {
+        console.log('jsonStream test');
         const
-            sourceStrm = sourceStream('{"a":["1", "2"]}'),
-            jsonStrm = require('JSONStream').parse('a'),
+            sourceStrm = sourceStream('{"a":["1", "2", {"xx":"ii"}]}'),
+            jsonStrm = require('JSONStream').parse('a.*'),
             wStream = genWStream();
 
         sourceStrm.pipe(jsonStrm).pipe(wStream);

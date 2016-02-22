@@ -220,6 +220,7 @@
                 ofxData.serialize()
             );
             console.log('ofx file wrote!');
+            return count;
         });
     }
 
@@ -239,23 +240,11 @@
         console.log([period.start, period.end].join(' - '));
         moneyStream = zaim.zaimMoneyStream(period.start, period.end);
 
-        yield new Promise((resolve, reject) => {
-            moneyStream.on('data', (chunk) => {
-                try {
-                    console.dir(chunk);
-                    //console.log('data:' + chunk.length);
-                } catch (err) {
-                    reject(err);
-                }
-            });
-        });
-        /*
-        yield Promise.all([
-            //writeOfxFile(moneyStream),
+        const ret = yield Promise.all([
+            writeOfxFile(moneyStream),
             writeBackupFile(period, moneyStream)
         ]);
-        */
-        console.log('compleated.');
+        console.log('compleated. ' + ret[0] + '件');
 
     }).catch((err) => {
         console.error('*** ERROR ***');
