@@ -4,6 +4,7 @@
   "description": "",
   "main": "init.js",
   "dependencies": {
+    "JSONStream": "^1.0.7",
     "co": "^4.6.0",
     "oauth": "^0.9.14",
     "xml2json": "^0.9.0"
