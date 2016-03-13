@@ -4,13 +4,11 @@
     'use strict';
     const
         co = require('co'),
-        config = require('./config'),
         fs = require('./lib/fsUtil'),
         dateString = require('./lib/dateString'),
-        makeZaim = require('./lib/zaimUtil'),
         genOfxData = require('./lib/ofxUtil'),
-        memoUtil = require('./lib/memo.js');
-
+        memoUtil = require('./lib/memo.js'),
+        genAccessableZaim = require('./lib/genAccessableZaim');
 
     function tryReject(reject, cb) {
         return  function () {
@@ -55,89 +53,6 @@
             targetMonth: targetMonth
         };
     }
-
-    function readOneline() {
-        // 一行入力処理
-        const reader = require('readline').createInterface({
-            input: process.stdin,
-            output: process.stdout
-        });
-        return new Promise((resolve) => {
-            const tryBlock = generateTryBlock(resolve);
-
-            reader.on('line', tryBlock((line) => {
-                reader.close();
-                resolve(line.trim());
-            }));
-        });
-    }
-
-    function genAccessableZaim() {
-        // access可能なzaimオブジェクトをPromiseで返す
-        // 1. 以前のアクセストークンをmemo.jsonファイルから読む
-        // 2. getUserを実行しZAIMにアクセステスト
-        // 3. アクセスに失敗したら、getAccessTokenで新規アクセストークを取得
-        //    3-1. 標準出力に出力されたURLにアクセス
-        //    3-2. そのページで、アクセス認証操作。
-        //    3-3. 認証コード（Verifierコード）が表示される
-        //    3-4. 標準入録に認証コード（Verifierコード）を入力
-        //    3-5. 新規アクセストークンを取得（＋memo.jsonに保存）
-
-        const zaim = makeZaim(config);
-
-        return co(function *() {
-            let memo,
-                status;
-            memo = yield memoUtil('./memo.json').load();
-
-            if (memo.info.accessToken !== undefined && memo.info.accessToken !== undefined) {
-                // try access to zaim
-                status = yield (
-                    zaim.setAccessToken({
-                        accessToken: memo.info.accessToken,
-                        accessTokenSecret: memo.info.accessTokenSecret
-                    })
-                    .getUser()
-                    .then(() => {return 'Success';})
-                    .catch((err) => {
-                        if (err.statusCode === 401) {
-                            return 'Failure';
-                        } else {
-                            throw err;
-                        }
-                    })
-                );
-            } else {
-                status = 'NoSetting';
-            }
-
-            // console.log(`status=${status}`);
-            if (status === 'Success') {
-                return zaim;
-            } else {
-                let newInfo;
-
-                newInfo = yield zaim.getAccessToken((url) => {
-                    process.stdout.write([
-                        '以下のURLで認証し、Verifierコードを入手しnewInfoてください。\n',
-                        url,
-                        '\nInput Verifier:'
-                    ].join(''));
-                    return readOneline();
-                });
-
-                memo.info.accessToken = newInfo.accessToken;
-                memo.info.accessTokenSecret = newInfo.accessTokenSecret;
-                yield memo.save();
-
-                return zaim.setAccessToken({
-                    accessToken: newInfo.accessToken,
-                    accessTokenSecret: newInfo.accessTokenSecret
-                });
-            }
-        });
-    }
-
 
     function writeBackupFile (period, moneyStream) {
         return co(function *() {
@@ -226,18 +141,31 @@
 
     // main
     co(function *() {
-        let
+        let memo,
             zaim,
             moneyStream,
             period;
+        const config = require('./config');
 
         console.log('start');
-        zaim = yield genAccessableZaim();
+
+        memo = yield memoUtil('./memo.json').load();
+        zaim = yield genAccessableZaim({
+            consumerKey: config.consumerKey,
+            consumerSecret: config.consumerSecret,
+            accessToken: memo.info.accessToken,
+            accessTokenSecret: memo.info.accessTokenSecret
+        }, (newAccessToken) => {
+            memo.info.accessToken = newAccessToken.accessToken;
+            memo.info.accessTokenSecret = newAccessToken.accessTokenSecret;
+            return memo.save();
+        });
+
         period =genPeriod();
+        console.log([period.start, period.end].join(' - '));
 
         // zaim から取引情報取得
         //moneys = yield zaim.getMoney(period.start, period.end);
-        console.log([period.start, period.end].join(' - '));
         moneyStream = zaim.zaimMoneyStream(period.start, period.end);
 
         const ret = yield Promise.all([
