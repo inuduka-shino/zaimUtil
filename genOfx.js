@@ -7,7 +7,7 @@
         fs = require('./lib/fsUtil'),
         dateString = require('./lib/dateString'),
         genOfxData = require('./lib/ofxUtil'),
-        memoUtil = require('./lib/memo.js'),
+        memoUtil = require('./lib/memo'),
         genAccessableZaim = require('./lib/genAccessableZaim');
 
     function tryReject(reject, cb) {
