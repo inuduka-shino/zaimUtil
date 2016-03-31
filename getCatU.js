@@ -28,27 +28,11 @@
             });
         }
 
-        { // getCategory
+        { // getCategory & getGenre
             console.log('*getCategoryUtil*');
-            const catgDict = {
-                payment: new Map(),
-                income: new Map()
-            };
-            const categories =  yield zaim.getCategoryUtil();
-            for (const ctg of categories) {
-                catgDict[ctg.mode].set(ctg.id, ctg);
-            }
-            console.dir(catgDict['payment'].get(110));
-        }
-        { // getGenre
-            console.log('*getGenreUtil*');
-            const genreDict = new Map();
-            const genres =  yield zaim.getGenreUtil();
-            for (const gnr of genres) {
-                console.log(gnr);
-                genreDict.set(gnr.id, gnr);
-            }
-            console.dir(genreDict.get(11409));
+            const catgDict =  yield zaim.getCategoryDict();
+            console.dir(catgDict.get(110).category);
+            console.dir(catgDict.get(114).genres.get(11409));
         }
     }).catch((err) => {
         console.error('*** ERROR ***');
