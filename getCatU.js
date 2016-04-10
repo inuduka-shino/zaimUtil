@@ -38,6 +38,10 @@
                 })
                 .on('end', () => {
                     console.log('category End');
+                })
+                .on('error', (err) => {
+                    console.log('**getCategoryByStream error***');
+                    console.log(err.stack);
                 });
         }
 
