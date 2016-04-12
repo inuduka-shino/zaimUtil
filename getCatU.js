@@ -28,32 +28,35 @@
             });
         }
 
-        { // getCategory & getGenre
+        {
             console.log('*getCategoryByStream*');
-            let count = 1;
-            zaim.getCategoryByStream()
-                .on('data', (chunk) => {
-                    console.log(`${count} ${chunk.id} ${chunk.mode} ${chunk.name}`);
-                    count += 1;
-                })
-                .on('end', () => {
-                    console.log('category End');
-                })
-                .on('error', (err) => {
-                    console.log('**getCategoryByStream error***');
-                    console.log(err.stack);
-                });
+            yield new Promise((resolve, reject) =>{
+                // getCategory & getGenre
+                let count = 1;
+                zaim.getCategoryByStream()
+                    .on('data', (chunk) => {
+                        console.log(`${count} ${chunk.id} ${chunk.mode} ${chunk.name}`);
+                        count += 1;
+                    })
+                    .on('end', () => {
+                        resolve();
+                    })
+                    .on('error', (err) => {
+                        reject(err);
+                    });
+            });
+            console.log('getCategoryByStream End');
         }
 
-
-        /*
-        { // getCategory & getGenre
-            console.log('*getCategoryUtil*');
+        { // getCategoryDict
+            console.log('*getCategoryDict*');
             const catgDict =  yield zaim.getCategoryDict();
+            //console.dir(catgDict);
             console.dir(catgDict.get(110).category);
-            console.dir(catgDict.get(114).genres.get(11409));
+            //console.dir(catgDict.get(114).genres.get(11409));
+            console.dir(catgDict.get(114).genres);
+            console.log('getCategoryDict End');
         }
-        */
     }).catch((err) => {
         console.error('*** ERROR ***');
         if (err.stack === undefined) {
