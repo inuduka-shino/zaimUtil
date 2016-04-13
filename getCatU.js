@@ -53,8 +53,8 @@
             const catgDict =  yield zaim.getCategoryDict();
             //console.dir(catgDict);
             console.dir(catgDict.get(110).category);
-            //console.dir(catgDict.get(114).genres.get(11409));
-            console.dir(catgDict.get(114).genres);
+            console.dir(catgDict.get(114).genres.get(11409));
+            //console.dir(catgDict.get(114).genres);
             console.log('getCategoryDict End');
         }
     }).catch((err) => {
