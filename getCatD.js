@@ -37,6 +37,9 @@
             console.dir(dict.get(103).category);
             console.log('- 101');
             console.dir(dict.get(101).category);
+            console.log('- 114 - 09');
+            console.dir(dict.get(114).category);
+            console.dir(dict.get(114).genres.get(11409));
         });
 
     }).catch((err) => {

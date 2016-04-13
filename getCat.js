@@ -30,7 +30,7 @@
 
         { // getGenre
             console.log('*getGenre*');
-            const categories =  yield [null, undefined, 'income', 'payment'].map((mode) =>{
+            const genresList =  yield [null, undefined, 'income', 'payment'].map((mode) =>{
                 return zaim.getGenre(mode).then((data)=>{
                     return data.genres.filter((genre) => (genre.active === 1));
                 });
@@ -40,14 +40,14 @@
                 const dict = {};
                 for (let idx = 0; idx < 4; idx += 1) {
                     const
-                        catgs = categories[idx],
+                        genres = genresList[idx],
                         modeName = modenames[idx];
                     let count = 0;
-                    catgs.forEach((catg) => {
-                        if (dict[catg.id] === undefined) {
-                            dict[catg.id] = {};
+                    genres.forEach((genre) => {
+                        if (dict[genre.id] === undefined) {
+                            dict[genre.id] = {};
                         }
-                        dict[catg.id][modeName] = String(catg.mode);
+                        dict[genre.id][modeName] = String(genre.mode);
                         count += 1;
                     });
                     console.log(`${modeName}:${count}`);
@@ -80,7 +80,7 @@
                     });
                     console.log(count);
                 }
-                //console.dir(dict);
+                console.dir(dict);
             }
         }
     }).catch((err) => {
