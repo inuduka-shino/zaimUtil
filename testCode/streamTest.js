@@ -10,12 +10,16 @@
         });
     }
 
-    function genWStream() {
+    function genWStream(mode) {
         const wStream = new stream.Writable({
             objectMode: true
         });
         wStream._write = function (obj, encoding, callback) {
-            console.log('>> ' + obj);
+            if (mode === 'dir') {
+                console.dir(obj);
+            } else {
+                console.log('>> ' + obj);
+            }
             callback();
         };
         return wStream;
@@ -30,7 +34,7 @@
 
     console.log('timer test');
     timer(1).then(() => {
-        console.log('delay output');
+        //console.log('delay output');
         throw new Error('jump');
     }).then(() => {
         console.log('nomal readable stream');
@@ -84,7 +88,7 @@
         return finishPromise(wStream);
     }).catch((err) => {
         if (err.message === 'jump') {
-            console.log(err.message);
+            console.log('from ' + err.message);
         } else {
             throw err;
         }
@@ -171,8 +175,77 @@
 
         return finishPromise(wStream);
     }).then(() => {
+        console.log('delay readable stream');
+        const source = ['A', {b:'obejct-b'}, 'CcC'];
+        const wStream = genWStream('dir');
+        const rStream = new stream.Readable({
+            objectMode: true
+        });
+        rStream._read = function () {
+            timer(50).then(()=>{
+                rStream.push(source.shift()||null);
+            });
+        };
+
+        rStream.pipe(wStream);
+
+        return finishPromise(wStream);
+
+    }).then(() => {
+        console.log('concat stream2(merge)');
+        const wStream = genWStream();
+        const source = ['11', '22', '33'];
+        const source2 = ['A', '22', 'B', 'C'];
+        const pass = new Set();
+        const rStream = new stream.Readable({
+            objectMode: true
+        });
+        const rStream2 = new stream.Readable({
+            objectMode: true
+        });
+        rStream._read = function () {
+            rStream.push(source.shift()||null);
+        };
+        rStream2._read = function () {
+            let chunk;
+            do {
+                chunk = source2.shift();
+            } while(pass.has(chunk) && (chunk !== undefined));
+            rStream2.push(chunk||null);
+        };
+
+        const tStream = new stream.Transform({
+            objectMode: true
+        });
+        tStream._transform = function (chunk, encode, cb) {
+            tStream.push(chunk);
+            cb();
+        };
+        tStream._flush = function (cb) {
+            cb();
+        };
+
+        tStream.pipe(wStream);
+
+        rStream.on('data', (chunk) => {
+            pass.add(chunk);
+
+        });
+        rStream.pipe(tStream,  { end: false });
+        rStream.on('end', () => {
+            rStream2.pipe(tStream,  { end: false });
+        });
+
+        rStream2.on('end', () => {
+            tStream.end('END');
+        });
+
+        return finishPromise(wStream);
+
+    }).then(() => {
         console.log('test End');
     }).catch((err) => {
+        console.log('*** ERROR ***');
         console.log(err.stack);
     });
 

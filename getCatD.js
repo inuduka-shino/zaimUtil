@@ -28,35 +28,20 @@
             });
         }
 
-        {
-            console.log('*getCategoryByStream*');
-            yield new Promise((resolve, reject) =>{
-                // getCategory & getGenre
-                let count = 1;
-                zaim.getCategoryByStream()
-                    .on('data', (chunk) => {
-                        console.log(`${count} ${chunk.id} ${chunk.mode} ${chunk.name}`);
-                        count += 1;
-                    })
-                    .on('end', () => {
-                        resolve();
-                    })
-                    .on('error', (err) => {
-                        reject(err);
-                    });
-            });
-            console.log('getCategoryByStream End');
-        }
-
-        { // getCategoryDict
+        co(function* () {
+            // getCategory & getGenre
             console.log('*getCategoryDict*');
-            const catgDict =  yield zaim.getCategoryDict();
-            //console.dir(catgDict);
-            console.dir(catgDict.get(110).category);
-            console.dir(catgDict.get(114).genres.get(11409));
-            //console.dir(catgDict.get(114).genres);
-            console.log('getCategoryDict End');
-        }
+            let dict;
+            dict = yield zaim.getCategoryDict();
+            console.log('- 103');
+            console.dir(dict.get(103).category);
+            console.log('- 101');
+            console.dir(dict.get(101).category);
+            console.log('- 114 - 09');
+            console.dir(dict.get(114).category);
+            console.dir(dict.get(114).genres.get(11409));
+        });
+
     }).catch((err) => {
         console.error('*** ERROR ***');
         if (err.stack === undefined) {
