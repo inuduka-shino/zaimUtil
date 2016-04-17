@@ -84,10 +84,20 @@
         });
     }
 
+    class UserError extends Error {
+        constructor(code, message) {
+            super(message);
+            this.code = code;
+        }
+    }
+
     function genUserError(code, message) {
+        /*
         let err = new Error(message);
         err.code = code;
         return err;
+        */
+        return new UserError(code, message);
     }
 
     function writeOfxFile (moneyStream, catgoryDict) {
@@ -123,10 +133,6 @@
                     }
                     return [ctgName, gnrName].join('-');
                 } catch (err) {
-                    console.log(`cid=${cid}`);
-                    console.log(`gid=${gid}`);
-                    console.log(`${cid}:${ctgName}`);
-                    console.log(`${gid}:${gnrName}`);
                     throw err;
                 }
             }
