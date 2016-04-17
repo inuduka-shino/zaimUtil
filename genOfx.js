@@ -111,7 +111,7 @@
                     ctg = catgoryDict.get(cid),
                     ctgName = ctg.category.name;
                     if (ctg.category.active !== 1) {
-                        throw genUserError('', `category[${ctgName}:${cid}] is not active`);
+                        throw genUserError('no-active', `category[${ctgName}:${cid}] is not active`);
                     }
                     if (gid === 0) {
                         return ctgName;
@@ -119,7 +119,7 @@
                     genre = ctg.genres.get(gid);
                     gnrName = genre.name;
                     if (genre.active !== 1) {
-                        throw new Error(`genre[${gnrName}:${gid}] is not active`);
+                        throw genUserError('no-active', `genre[${gnrName}:${gid}] is not active`);
                     }
                     return [ctgName, gnrName].join('-');
                 } catch (err) {
@@ -153,7 +153,12 @@
                     try {
                         name = name(moneyInfo.category_id, moneyInfo.genre_id);
                     } catch (err) {
-                        err.
+                        if (err.code === 'no-active') {
+                            console.log('bad category code error!');
+                            console.log(err);
+                            console.dir(moneyInfo);
+                        }
+                        throw err;
                     }
                     ofxData.addTrans({
                         id: 'ZAIM00A' + moneyInfo.id,
