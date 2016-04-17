@@ -102,7 +102,7 @@
             });
             let count = 0;
 
-            function name(cid, gid) {
+            function genName(cid, gid) {
                 let ctg,
                     ctgName,
                     genre,
@@ -151,7 +151,7 @@
                         return; // continue forEach
                     }
                     try {
-                        name = name(moneyInfo.category_id, moneyInfo.genre_id);
+                        name = genName(moneyInfo.category_id, moneyInfo.genre_id);
                     } catch (err) {
                         if (err.code === 'no-active') {
                             console.log('bad category code error!');
