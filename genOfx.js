@@ -85,7 +85,7 @@
     }
 
 
-    function writeOfxFile (moneyStream) {
+    function writeOfxFile (moneyStream, catgoryDict) {
         return co(function* (){
             const ofxData = genOfxData({
                 fiOrg: 'ZAIM-INFORMATON',
@@ -96,6 +96,28 @@
                 acctType: 'SAVINGS'
             });
             let count = 0;
+
+            function name(cid, gid) {
+                let ctg,
+                    ctgName,
+                    gnrName;
+                try {
+                    ctg = catgoryDict.get(cid),
+                    ctgName = ctg.category.name;
+                    if (gid === 0) {
+                        return ctgName;
+                    } else {
+                        gnrName = ctg.genres.get(gid).name;
+                        return [ctgName, gnrName].join('-');
+                    }
+                } catch (err) {
+                    console.log(`cid=${cid}`);
+                    console.log(`gid=${gid}`);
+                    console.log(`${cid}:${ctgName}`);
+                    console.log(`${gid}:${gnrName}`);
+                    throw err;
+                }
+            }
 
             yield new Promise((resolve, reject) => {
                 const tryBlock = generateTryBlock(reject);
@@ -120,7 +142,7 @@
                         type: type,
                         date: moneyInfo.date,
                         amount: amount,
-                        name: [moneyInfo.category_id, moneyInfo.genre_id].join('-'),
+                        name: name(moneyInfo.category_id, moneyInfo.genre_id),
                         memo: [moneyInfo.id, moneyInfo.place].join(' ')
                     });
                 }));
@@ -144,7 +166,8 @@
         let memo,
             zaim,
             moneyStream,
-            period;
+            period,
+            catgoryDict;
         const config = require('./config');
 
         console.log('start');
@@ -164,12 +187,15 @@
         period =genPeriod();
         console.log([period.start, period.end].join(' - '));
 
+        // zaim からcategory & genre 情報取得
+        catgoryDict = yield zaim.getCategoryDict();
+
         // zaim から取引情報取得
         //moneys = yield zaim.getMoney(period.start, period.end);
         moneyStream = zaim.zaimMoneyStream(period.start, period.end);
 
         const ret = yield Promise.all([
-            writeOfxFile(moneyStream),
+            writeOfxFile(moneyStream, catgoryDict),
             writeBackupFile(period, moneyStream)
         ]);
         console.log('compleated. ' + ret[0] + '件');
