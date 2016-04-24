@@ -144,6 +144,12 @@
                     let type,
                         amount,
                         name;
+                    if (moneyInfo.active !== 1) {
+                        console.log('------');
+                        console.log('pass transaction:' + moneyInfo.id);
+                        console.log('no-active:' + moneyInfo.active);
+                        return; // continue forEach
+                    }
                     if (moneyInfo.mode === 'payment') {
                         type = 'DEBIT';
                         amount =  -1 * Number(moneyInfo.amount);
@@ -160,11 +166,14 @@
                         name = genName(moneyInfo.category_id, moneyInfo.genre_id);
                     } catch (err) {
                         if (err.code === 'no-active') {
-                            console.log('bad category code error!');
-                            console.log(err);
+                            console.log('------');
+                            console.log('pass transaction:' + moneyInfo.id);
+                            console.log(err.message);
+                            // console.log(err);
                             console.dir(moneyInfo);
+                        } else {
+                            throw err;
                         }
-                        throw err;
                     }
                     ofxData.addTrans({
                         id: 'ZAIM00A' + moneyInfo.id,
