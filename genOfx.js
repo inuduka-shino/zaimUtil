@@ -4,6 +4,7 @@
     'use strict';
     const
         co = require('co'),
+        opts = require('opts'),
         fs = require('./lib/fsUtil'),
         dateString = require('./lib/dateString'),
         genOfxData = require('./lib/ofxUtil'),
@@ -24,14 +25,14 @@
         return tryReject.bind(null, reject);
     }
 
-    function genPeriod() {
+    function genPeriod(args) {
         // コマンド引数から対象期間を決定
 
         let targetMonth, // "YYYY-MM" string
             targetDay;   // DateObject
 
         // comand line argment
-        const target = process.argv[2];
+        const target = args[0];
         if (/^[0-9]{4}-[0-9]{1,2}$/.test(target)) {
             targetMonth = target;
         } else if (target === undefined) {
@@ -206,9 +207,23 @@
             moneyStream,
             period,
             catgoryDict;
+
+
         const config = require('./config');
 
         console.log('start');
+
+        opts.parse(
+            [{
+                'short': 'n',
+                'long': 'new',
+                'description': 'output only new category transaction',
+                'value': false,
+                'required': false
+            }],
+            true // for  Automatically generate help message
+        );
+        config.newCtg = opts.get('new');
 
         memo = yield memoUtil('./memo.json').load();
         zaim = yield genAccessableZaim({
@@ -222,7 +237,7 @@
             return memo.save();
         });
 
-        period =genPeriod();
+        period =genPeriod(opts.args());
         console.log([period.start, period.end].join(' - '));
 
         // zaim からcategory & genre 情報取得
