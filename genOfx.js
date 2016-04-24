@@ -84,6 +84,21 @@
         });
     }
 
+    class UserError extends Error {
+        constructor(code, message) {
+            super(message);
+            this.code = code;
+        }
+    }
+
+    function genUserError(code, message) {
+        /*
+        let err = new Error(message);
+        err.code = code;
+        return err;
+        */
+        return new UserError(code, message);
+    }
 
     function writeOfxFile (moneyStream, catgoryDict) {
         return co(function* (){
@@ -97,24 +112,27 @@
             });
             let count = 0;
 
-            function name(cid, gid) {
+            function genName(cid, gid) {
                 let ctg,
                     ctgName,
+                    genre,
                     gnrName;
                 try {
                     ctg = catgoryDict.get(cid),
                     ctgName = ctg.category.name;
+                    if (ctg.category.active !== 1) {
+                        throw genUserError('no-active', `category[${ctgName}:${cid}] is not active`);
+                    }
                     if (gid === 0) {
                         return ctgName;
-                    } else {
-                        gnrName = ctg.genres.get(gid).name;
-                        return [ctgName, gnrName].join('-');
                     }
+                    genre = ctg.genres.get(gid);
+                    gnrName = genre.name;
+                    if (genre.active !== 1) {
+                        throw genUserError('no-active', `genre[${gnrName}:${gid}] is not active`);
+                    }
+                    return [ctgName, gnrName].join('-');
                 } catch (err) {
-                    console.log(`cid=${cid}`);
-                    console.log(`gid=${gid}`);
-                    console.log(`${cid}:${ctgName}`);
-                    console.log(`${gid}:${gnrName}`);
                     throw err;
                 }
             }
@@ -124,7 +142,14 @@
                 moneyStream.on('data',tryBlock((moneyInfo) => {
                     count += 1;
                     let type,
-                        amount;
+                        amount,
+                        name;
+                    if (moneyInfo.active !== 1) {
+                        console.log('------');
+                        console.log('pass transaction:' + moneyInfo.id);
+                        console.log('no-active:' + moneyInfo.active);
+                        return; // continue forEach
+                    }
                     if (moneyInfo.mode === 'payment') {
                         type = 'DEBIT';
                         amount =  -1 * Number(moneyInfo.amount);
@@ -137,12 +162,25 @@
                         console.log('unkown mode:' + moneyInfo.mode);
                         return; // continue forEach
                     }
+                    try {
+                        name = genName(moneyInfo.category_id, moneyInfo.genre_id);
+                    } catch (err) {
+                        if (err.code === 'no-active') {
+                            console.log('------');
+                            console.log('pass transaction:' + moneyInfo.id);
+                            console.log(err.message);
+                            // console.log(err);
+                            console.dir(moneyInfo);
+                        } else {
+                            throw err;
+                        }
+                    }
                     ofxData.addTrans({
                         id: 'ZAIM00A' + moneyInfo.id,
                         type: type,
                         date: moneyInfo.date,
                         amount: amount,
-                        name: name(moneyInfo.category_id, moneyInfo.genre_id),
+                        name: name,
                         memo: [moneyInfo.id, moneyInfo.place].join(' ')
                     });
                 }));
