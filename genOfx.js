@@ -42,10 +42,10 @@
 
         if (targetMonth === null) {
             targetDay = new Date();
-            targetMonth = dateString.makeDayString(targetDay, 'YYYY-MM');
         } else {
             targetDay = new Date(targetMonth);
         }
+        targetMonth = dateString.makeDayString(targetDay, 'YYYY-MM');
 
         return {
             start: dateString.makeFirstDayString(targetDay),
