@@ -101,7 +101,7 @@
         return new UserError(code, message);
     }
 
-    function writeOfxFile (moneyStream, catgoryDict) {
+    function writeOfxFile (moneyStream, catgoryDict, onlyNewCtg) {
         return co(function* (){
             const ofxData = genOfxData({
                 fiOrg: 'ZAIM-INFORMATON',
@@ -139,9 +139,11 @@
             }
 
             yield new Promise((resolve, reject) => {
-                const tryBlock = generateTryBlock(reject);
+                const
+                    tryBlock = generateTryBlock(reject),
+                    alreadyOutSet = new Set();
+
                 moneyStream.on('data',tryBlock((moneyInfo) => {
-                    count += 1;
                     let type,
                         amount,
                         name;
@@ -176,6 +178,13 @@
                             throw err;
                         }
                     }
+                    if (onlyNewCtg === true) {
+                        if (alreadyOutSet.has(name)) {
+                            return; // pass ofxData.addTrans
+                        }
+                        alreadyOutSet.add(name);
+                    }
+                    count += 1;
                     ofxData.addTrans({
                         id: 'ZAIM00A' + moneyInfo.id,
                         type: type,
@@ -207,8 +216,6 @@
             moneyStream,
             period,
             catgoryDict;
-
-
         const config = require('./config');
 
         console.log('start');
@@ -223,7 +230,6 @@
             }],
             true // for  Automatically generate help message
         );
-        config.newCtg = opts.get('new');
 
         memo = yield memoUtil('./memo.json').load();
         zaim = yield genAccessableZaim({
@@ -248,7 +254,11 @@
         moneyStream = zaim.zaimMoneyStream(period.start, period.end);
 
         const ret = yield Promise.all([
-            writeOfxFile(moneyStream, catgoryDict),
+            writeOfxFile(
+                moneyStream,
+                catgoryDict,
+                opts.get('new')
+            ),
             writeBackupFile(period, moneyStream)
         ]);
         console.log('compleated. ' + ret[0] + '件');
