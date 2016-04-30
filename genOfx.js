@@ -4,6 +4,7 @@
     'use strict';
     const
         co = require('co'),
+        opts = require('opts'),
         fs = require('./lib/fsUtil'),
         dateString = require('./lib/dateString'),
         genOfxData = require('./lib/ofxUtil'),
@@ -24,14 +25,14 @@
         return tryReject.bind(null, reject);
     }
 
-    function genPeriod() {
+    function genPeriod(args) {
         // コマンド引数から対象期間を決定
 
         let targetMonth, // "YYYY-MM" string
             targetDay;   // DateObject
 
         // comand line argment
-        const target = process.argv[2];
+        const target = args[0];
         if (/^[0-9]{4}-[0-9]{1,2}$/.test(target)) {
             targetMonth = target;
         } else if (target === undefined) {
@@ -100,7 +101,7 @@
         return new UserError(code, message);
     }
 
-    function writeOfxFile (moneyStream, catgoryDict) {
+    function writeOfxFile (moneyStream, catgoryDict, onlyNewCtg) {
         return co(function* (){
             const ofxData = genOfxData({
                 fiOrg: 'ZAIM-INFORMATON',
@@ -138,9 +139,11 @@
             }
 
             yield new Promise((resolve, reject) => {
-                const tryBlock = generateTryBlock(reject);
+                const
+                    tryBlock = generateTryBlock(reject),
+                    alreadyOutSet = new Set();
+
                 moneyStream.on('data',tryBlock((moneyInfo) => {
-                    count += 1;
                     let type,
                         amount,
                         name;
@@ -175,6 +178,13 @@
                             throw err;
                         }
                     }
+                    if (onlyNewCtg === true) {
+                        if (alreadyOutSet.has(name)) {
+                            return; // pass ofxData.addTrans
+                        }
+                        alreadyOutSet.add(name);
+                    }
+                    count += 1;
                     ofxData.addTrans({
                         id: 'ZAIM00A' + moneyInfo.id,
                         type: type,
@@ -210,6 +220,17 @@
 
         console.log('start');
 
+        opts.parse(
+            [{
+                'short': 'n',
+                'long': 'new',
+                'description': 'output only new category transaction',
+                'value': false,
+                'required': false
+            }],
+            true // for  Automatically generate help message
+        );
+
         memo = yield memoUtil('./memo.json').load();
         zaim = yield genAccessableZaim({
             consumerKey: config.consumerKey,
@@ -222,7 +243,7 @@
             return memo.save();
         });
 
-        period =genPeriod();
+        period =genPeriod(opts.args());
         console.log([period.start, period.end].join(' - '));
 
         // zaim からcategory & genre 情報取得
@@ -233,7 +254,11 @@
         moneyStream = zaim.zaimMoneyStream(period.start, period.end);
 
         const ret = yield Promise.all([
-            writeOfxFile(moneyStream, catgoryDict),
+            writeOfxFile(
+                moneyStream,
+                catgoryDict,
+                opts.get('new')
+            ),
             writeBackupFile(period, moneyStream)
         ]);
         console.log('compleated. ' + ret[0] + '件');
