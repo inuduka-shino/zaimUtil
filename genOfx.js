@@ -11,6 +11,24 @@
         memoUtil = require('./lib/memo'),
         genAccessableZaim = require('./lib/genAccessableZaim');
 
+    const genUserError = (()=>{
+        class UserError extends Error {
+            constructor(code, message) {
+                super(message);
+                this.code = code;
+            }
+        }
+
+        return function(code, message) {
+            /*
+            let err = new Error(message);
+            err.code = code;
+            return err;
+            */
+            return new UserError(code, message);
+        };
+    })();
+
     function tryReject(reject, cb) {
         return  function () {
             try {
@@ -83,22 +101,6 @@
             });
             console.log(`backuup file wrote. ` + strm.path);
         });
-    }
-
-    class UserError extends Error {
-        constructor(code, message) {
-            super(message);
-            this.code = code;
-        }
-    }
-
-    function genUserError(code, message) {
-        /*
-        let err = new Error(message);
-        err.code = code;
-        return err;
-        */
-        return new UserError(code, message);
     }
 
     function writeOfxFile (moneyStream, catgoryDict, onlyNewCtg) {
