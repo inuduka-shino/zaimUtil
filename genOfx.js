@@ -141,7 +141,8 @@
             yield new Promise((resolve, reject) => {
                 const
                     tryBlock = generateTryBlock(reject),
-                    alreadyOutSet = new Set();
+                    alreadyOutSet = new Set(),
+                    transMap = new Map();
 
                 moneyStream.on('data',tryBlock((moneyInfo) => {
                     let type,
@@ -184,17 +185,38 @@
                         }
                         alreadyOutSet.add(name);
                     }
-                    count += 1;
-                    ofxData.addTrans({
-                        id: 'ZAIM00A' + moneyInfo.id,
-                        type: type,
-                        date: moneyInfo.date,
-                        amount: amount,
-                        name: name,
-                        memo: [moneyInfo.id, moneyInfo.place].join(' ')
-                    });
+                    {
+                        const key = [moneyInfo.date, moneyInfo.receipt_id, name].join('');
+                        if (transMap.has(key)) {
+                            transMap.get(key).amount += amount;
+                        } else {
+                            transMap.set(
+                                key,
+                                {
+                                    id: moneyInfo.id,
+                                    type: type,
+                                    date: moneyInfo.date,
+                                    amount: amount,
+                                    name: name,
+                                    place: moneyInfo.place
+                                }
+                            );
+                        }
+                    }
                 }));
                 moneyStream.on('end', ()=> {
+                    for (const key of Array.from(transMap.keys()).sort()) {
+                        const info = transMap.get(key);
+                        count += 1;
+                        ofxData.addTrans({
+                            id: 'ZAIM00A' + info.id,
+                            type: info.type,
+                            date: info.date,
+                            amount: info.amount,
+                            name: info.name,
+                            memo: info.place
+                        });
+                    }
                     resolve();
                 });
             });
