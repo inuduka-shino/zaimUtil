@@ -181,12 +181,6 @@
                             throw err;
                         }
                     }
-                    if (onlyNewCtg === true) {
-                        if (alreadyOutSet.has(name)) {
-                            return; // pass ofxData.addTrans
-                        }
-                        alreadyOutSet.add(name);
-                    }
                     {
                         const key = [moneyInfo.date, moneyInfo.receipt_id, name].join('');
                         if (transMap.has(key)) {
@@ -209,6 +203,12 @@
                 moneyStream.on('end', ()=> {
                     for (const key of Array.from(transMap.keys()).sort()) {
                         const info = transMap.get(key);
+                        if (onlyNewCtg === true) {
+                            if (alreadyOutSet.has(info.name)) {
+                                break; // pass ofxData.addTrans
+                            }
+                            alreadyOutSet.add(info.name);
+                        }
                         count += 1;
                         ofxData.addTrans({
                             id: 'ZAIM00A' + info.id,
@@ -271,7 +271,7 @@
         console.log([period.start, period.end].join(' - '));
 
         // zaim からcategory & genre 情報取得
-        catgoryDict = yield zaim.getCategoryDict();
+        catgoryDict = yield zaim.getCategoryDict(config.categoryNames);
 
         // zaim から取引情報取得
         //moneys = yield zaim.getMoney(period.start, period.end);
