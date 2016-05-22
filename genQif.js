@@ -7,7 +7,7 @@
         opts = require('opts'),
         fs = require('./lib/fsUtil'),
         dateString = require('./lib/dateString'),
-        genOfxData = require('./lib/ofxUtil'),
+        genQifData = require('./lib/qifUtil'),
         memoUtil = require('./lib/memo'),
         genAccessableZaim = require('./lib/genAccessableZaim');
 
@@ -103,19 +103,13 @@
         });
     }
 
-    function writeOfxFile (moneyStream, catgoryDict, onlyNewCtg) {
+    function writeOfxFile (moneyStream, catgoryDict) {
         return co(function* (){
-            const ofxData = genOfxData({
-                fiOrg: 'ZAIM-INFORMATON',
-                fiFid: 'ZAIM0001',
-                bankID: 'ZAIM0001B001',
-                bankCID: 'BC001',
-                acctID: 'ACCT0001',
-                acctType: 'SAVINGS'
-            });
+            const
+                qifData = genQifData();
             let count = 0;
 
-            function genName(cid, gid) {
+            function genCtgTitle(cid, gid) {
                 let ctg,
                     ctgName,
                     genre,
@@ -142,14 +136,13 @@
 
             yield new Promise((resolve, reject) => {
                 const
-                    tryBlock = generateTryBlock(reject),
-                    alreadyOutSet = new Set(),
-                    transMap = new Map();
+                    tryBlock = generateTryBlock(reject);
 
                 moneyStream.on('data',tryBlock((moneyInfo) => {
-                    let type,
+                    let
                         amount,
-                        name;
+                        ctgTitle;
+
                     if (moneyInfo.active !== 1) {
                         console.log('------');
                         console.log('pass transaction:' + moneyInfo.id);
@@ -157,10 +150,10 @@
                         return; // continue forEach
                     }
                     if (moneyInfo.mode === 'payment') {
-                        type = 'DEBIT';
+                        //type = 'DEBIT';
                         amount =  -1 * Number(moneyInfo.amount);
                     } else if  (moneyInfo.mode === 'income') {
-                        type = 'CREDIT';
+                        //type = 'CREDIT';
                         amount =  Number(moneyInfo.amount);
                     } else {
                         console.log('------');
@@ -169,7 +162,7 @@
                         return; // continue forEach
                     }
                     try {
-                        name = genName(moneyInfo.category_id, moneyInfo.genre_id);
+                        ctgTitle = genCtgTitle(moneyInfo.category_id, moneyInfo.genre_id);
                     } catch (err) {
                         if (err.code === 'no-active') {
                             console.log('------');
@@ -181,54 +174,30 @@
                             throw err;
                         }
                     }
+
                     {
-                        const key = [moneyInfo.date, moneyInfo.receipt_id, name].join('');
-                        if (transMap.has(key)) {
-                            transMap.get(key).amount += amount;
-                        } else {
-                            transMap.set(
-                                key,
-                                {
-                                    id: moneyInfo.id,
-                                    type: type,
-                                    date: moneyInfo.date,
-                                    amount: amount,
-                                    name: name,
-                                    place: moneyInfo.place
-                                }
-                            );
-                        }
+                        count += 1;
+                        qifData.addTrans({
+                            date: moneyInfo.date,
+                            amount:  amount,
+                            payee: moneyInfo.place,
+                            memo: moneyInfo.name,
+                            category: ctgTitle,
+                            checknumber: 'ZAIM00A' + moneyInfo.id
+                        });
                     }
                 }));
                 moneyStream.on('end', ()=> {
-                    for (const key of Array.from(transMap.keys()).sort()) {
-                        const info = transMap.get(key);
-                        if (onlyNewCtg === true) {
-                            if (alreadyOutSet.has(info.name)) {
-                                break; // pass ofxData.addTrans
-                            }
-                            alreadyOutSet.add(info.name);
-                        }
-                        count += 1;
-                        ofxData.addTrans({
-                            id: 'ZAIM00A' + info.id,
-                            type: info.type,
-                            date: info.date,
-                            amount: info.amount,
-                            name: info.name,
-                            memo: info.place
-                        });
-                    }
                     resolve();
                 });
             });
             console.log('total %d件', count);
             // write ofx file.
             yield fs.writeFile(
-                'ofxInfo/Output.ofx',
-                ofxData.serialize()
+                'ofxInfo/zaim.qif',
+                qifData.serialize()
             );
-            console.log('ofx file wrote!');
+            console.log('qif file wrote!');
             return count;
         });
     }
