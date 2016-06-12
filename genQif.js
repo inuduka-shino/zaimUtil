@@ -192,7 +192,7 @@
                             payee: moneyInfo.place,
                             memo: moneyInfo.name,
                             category: ctgTitle,
-                            checknumber: 'ZAIM00A' + moneyInfo.id
+                            checknumber: moneyInfo.id
                         });
                     }
                 }));
