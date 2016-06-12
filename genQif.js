@@ -155,6 +155,9 @@
                     } else if  (moneyInfo.mode === 'income') {
                         //type = 'CREDIT';
                         amount =  Number(moneyInfo.amount);
+                    } else if  (moneyInfo.mode === 'transfer') {
+                        //type = 'CREDIT';
+                        amount =  Number(moneyInfo.amount);
                     } else {
                         console.log('------');
                         console.log('pass transaction:' + moneyInfo.id);
@@ -162,7 +165,13 @@
                         return; // continue forEach
                     }
                     try {
-                        ctgTitle = genCtgTitle(moneyInfo.category_id, moneyInfo.genre_id);
+                        if (moneyInfo.mode === 'payment' || moneyInfo.mode === 'income') {
+                            ctgTitle = genCtgTitle(moneyInfo.category_id, moneyInfo.genre_id);
+                        } else if (moneyInfo.mode === 'transfer') {
+                            ctgTitle = 'ATM';
+                        } else {
+                            throw new Error();
+                        }
                     } catch (err) {
                         if (err.code === 'no-active') {
                             console.log('------');
