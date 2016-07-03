@@ -185,15 +185,19 @@
                     }
 
                     {
-                        count += 1;
-                        qifData.addTrans({
-                            date: moneyInfo.date,
-                            amount:  amount,
-                            payee: moneyInfo.place,
-                            memo: moneyInfo.name,
-                            category: ctgTitle,
-                            checknumber: moneyInfo.id
-                        });
+                        if (moneyInfo.from_account_id === 1 || moneyInfo.to_account_id === 1 ) {
+                            count += 1;
+                            qifData.addTrans({
+                                date: moneyInfo.date,
+                                amount:  amount,
+                                payee: moneyInfo.place,
+                                memo: moneyInfo.name,
+                                category: ctgTitle,
+                                checknumber: moneyInfo.id
+                            });
+                        } else {
+                            console.log('pass for another account pass transaction:' + moneyInfo.id);
+                        }
                     }
                 }));
                 moneyStream.on('end', ()=> {
