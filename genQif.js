@@ -263,7 +263,9 @@
             throw new Error(`please set start_id or target_month.`);
         }
 
-        process.exit();
+        if (startId !== null) {
+            throw new Error(`startId option is no support.`);
+        }
 
         memo = yield memoUtil('./memo.json').load();
 
