@@ -43,36 +43,6 @@
         return tryReject.bind(null, reject);
     }
 
-    function genPeriod(args) {
-        // コマンド引数から対象期間を決定
-
-        let targetMonth, // "YYYY-MM" string
-            targetDay;   // DateObject
-
-        // comand line argment
-        const target = args[0];
-        if (/^[0-9]{4}-[0-9]{1,2}$/.test(target)) {
-            targetMonth = target;
-        } else if (target === undefined) {
-            targetMonth = null;
-        } else {
-            throw new Error(`argmennt is bad format!("YYYY-MM" !== "${target}")`);
-        }
-
-        if (targetMonth === null) {
-            targetDay = new Date();
-        } else {
-            targetDay = new Date(targetMonth);
-        }
-        targetMonth = dateString.makeDayString(targetDay, 'YYYY-MM');
-
-        return {
-            start: dateString.makeFirstDayString(targetDay),
-            end: dateString.makeLastDayString(targetDay),
-            targetMonth: targetMonth
-        };
-    }
-
     function writeBackupFile (period, moneyStream) {
         return co(function *() {
             // zaim data backup
@@ -215,29 +185,90 @@
         });
     }
 
+
     // main
     co(function *() {
         let memo,
             zaim,
             moneyStream,
-            period,
+            period = null,
+            startId = null,
             catgoryDict;
         const config = require('./config');
 
         console.log('start');
 
+        // option parse
         opts.parse(
-            [{
-                'short': 'n',
-                'long': 'new',
-                'description': 'output only new category transaction',
-                'value': false,
-                'required': false
-            }],
+            [
+                {
+                    'short': 'n',
+                    'long': 'new',
+                    'description': 'output only new category transaction',
+                    'value': false,
+                    'required': false
+                },
+                {
+                    'short': 'm',
+                    'long': 'target_month',
+                    'description': 'set target month',
+                    'value': true,
+                    'required': false,
+                    callback:   function (val) {
+                        // target_month parse
+
+                        let targetMonth, // "YYYY-MM" string
+                            targetDay;   // DateObject
+
+                        if (/^[0-9]{4}-[0-9]{1,2}$/.test(val)) {
+                            targetDay = new Date(val);
+                        } else if (val === 'now') {
+                            targetDay = new Date();
+                        } else {
+                            throw new Error(`argmennt is bad format!("YYYY-MM" !== "${val}")`);
+                        }
+
+                        targetMonth = dateString.makeDayString(targetDay, 'YYYY-MM');
+                        period =  {
+                            start: dateString.makeFirstDayString(targetDay),
+                            end: dateString.makeLastDayString(targetDay),
+                            targetMonth: targetMonth
+                        };
+                        console.log([period.start, period.end].join(' - '));
+                    }
+
+                },
+                {
+                    'short': 'id',
+                    'long': 'start_id',
+                    'description': 'set start id',
+                    'value': true,
+                    'required': false,
+                    callback: function (val) {
+                        if (/^[0-9]+$/.test(val)) {
+                            startId = val;
+                        } else {
+                            throw new Error(`bad format id error! (${val})`);
+                        }
+                        console.log(`start id:${startId}`);
+                    }
+                }
+            ],
             true // for  Automatically generate help message
         );
+        if (startId !== null && period !== null) {
+            throw new Error(`please dont set start_id and target_month.`);
+        }
+        if (startId === null && period === null) {
+            throw new Error(`please set start_id or target_month.`);
+        }
+
+        if (startId !== null) {
+            throw new Error(`startId option is no support.`);
+        }
 
         memo = yield memoUtil('./memo.json').load();
+
         zaim = yield genAccessableZaim({
             consumerKey: config.consumerKey,
             consumerSecret: config.consumerSecret,
@@ -248,9 +279,6 @@
             memo.info.accessTokenSecret = newAccessToken.accessTokenSecret;
             return memo.save();
         });
-
-        period =genPeriod(opts.args());
-        console.log([period.start, period.end].join(' - '));
 
         // zaim からcategory & genre 情報取得
         catgoryDict = yield zaim.getCategoryDict(config.categoryNames);
