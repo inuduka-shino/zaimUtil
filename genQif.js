@@ -269,16 +269,22 @@
 
         memo = yield memoUtil('./memo.json').load();
 
-        zaim = yield genAccessableZaim({
-            consumerKey: config.consumerKey,
-            consumerSecret: config.consumerSecret,
-            accessToken: memo.info.accessToken,
-            accessTokenSecret: memo.info.accessTokenSecret
-        }, (newAccessToken) => {
-            memo.info.accessToken = newAccessToken.accessToken;
-            memo.info.accessTokenSecret = newAccessToken.accessTokenSecret;
-            return memo.save();
-        });
+        zaim = yield genAccessableZaim(
+            {
+                consumerKey: config.consumerKey,
+                consumerSecret: config.consumerSecret,
+                accessToken: memo.info.accessToken,
+                accessTokenSecret: memo.info.accessTokenSecret
+            },
+            (newAccessToken) => {
+                memo.info.accessToken = newAccessToken.accessToken;
+                memo.info.accessTokenSecret = newAccessToken.accessTokenSecret;
+                return memo.save();
+            },
+            {
+                order: 'id'
+            }
+        );
 
         // zaim からcategory & genre 情報取得
         catgoryDict = yield zaim.getCategoryDict(config.categoryNames);
