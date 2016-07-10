@@ -9,6 +9,7 @@
     "oauth": "^0.9.14",
     "opts": "^1.2.2",
     "qif": "0.0.2",
+    "stream-filter": "^1.0.0",
     "xml2json": "^0.9.0"
   },
   "devDependencies": {},

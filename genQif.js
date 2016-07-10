@@ -6,6 +6,7 @@
         co = require('co'),
         opts = require('opts'),
         fs = require('./lib/fsUtil'),
+        filter = require('stream-filter'),
         dateString = require('./lib/dateString'),
         genQifData = require('./lib/qifUtil'),
         memoUtil = require('./lib/memo'),
