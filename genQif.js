@@ -328,7 +328,11 @@
             writeOfxFile(
                 moneyStream,
                 catgoryDict,
-                opts.get('new')
+                {
+                    start_date: period.start,
+                    start_end: period.end,
+                    newMode: opts.get('new') // no support
+                }
             ),
             writeBackupFile(period, moneyStream)
         ]);
