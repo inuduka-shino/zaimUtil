@@ -73,7 +73,7 @@
         });
     }
 
-    function writeOfxFile (moneyStream, catgoryDict) {
+    function writeOfxFile (moneyStream, catgoryDict, params = {}) {
         return co(function* (){
             const
                 qifData = genQifData();
@@ -110,7 +110,7 @@
                 let prev_date = null, // 未来から過去へ
                     receipt_id;
 
-                moneyStream.on('data',tryBlock((moneyInfo) => {
+                const read_data = tryBlock((moneyInfo) => {
                     let
                         amount,
                         ctgTitle;
@@ -170,6 +170,20 @@
                                 receipt_id = null;
                             }
                         }
+                        if (params.start_date !== undefined && moneyInfo.date < params.start_date) {
+                            console.log(`** alert **  日付範囲外`);
+                            console.dir(`${moneyInfo.date} < ${params.start_date}`);
+                        }
+                        if (params.end_date !== undefined && moneyInfo.date > params.end_date) {
+                            console.log(`** alert **  日付範囲外`);
+                            console.dir(`${moneyInfo.date} > ${params.end_date}`);
+                        }
+                        if (params.start_id !== undefined && moneyInfo.id <= params.start_id) {
+                            console.log('stop for reached start_id');
+                            // abort listenner
+                            moneyStream.removeListener('data', read_data);
+                            resolve();
+                        }
                         if (moneyInfo.from_account_id === 1 || moneyInfo.to_account_id === 1 ) {
                             count += 1;
                             qifData.addTrans({
@@ -184,7 +198,9 @@
                             console.log('pass for another account pass transaction:' + moneyInfo.id);
                         }
                     }
-                }));
+                });
+
+                moneyStream.on('data', read_data);
                 moneyStream.on('end', ()=> {
                     resolve();
                 });
