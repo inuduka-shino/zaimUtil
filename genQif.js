@@ -295,6 +295,24 @@
         {
             let filter_range_date,
                 filter_order_date;
+
+            {
+                let receipt_id;
+                filter_range_date = filter((moneyInfo) => {
+                    // 日付範囲外
+                    if ( (period.start <= moneyInfo.date) && (moneyInfo.date <= period.end) ) {
+                        receipt_id = null;
+                        return true;
+                    } else {
+                        if (receipt_id === moneyInfo.receipt_id) {
+                            console.log(`** alert **  日付範囲外`);
+                            console.log(`id:${moneyInfo.id}: ${moneyInfo.date}`);
+                            receipt_id = moneyInfo.receipt_id;
+                        }
+                        return false;
+                    }
+                });
+            }
             {
                 let prev_date = null,
                     receipt_id;
