@@ -215,29 +215,56 @@
         });
     }
 
+    function set_start_id(val) {
+        if (/^[0-9]+$/.test(val)) {
+            return val;
+        } else {
+            throw new Error(`bad format id error! (${val})`);
+        }
+    }
     // main
     co(function *() {
         let memo,
             zaim,
             moneyStream,
             period,
+            startId,
             catgoryDict;
         const config = require('./config');
 
         console.log('start');
 
         opts.parse(
-            [{
-                'short': 'n',
-                'long': 'new',
-                'description': 'output only new category transaction',
-                'value': false,
-                'required': false
-            }],
+            [
+                {
+                    'short': 'n',
+                    'long': 'new',
+                    'description': 'output only new category transaction',
+                    'value': false,
+                    'required': false
+                },
+                {
+                    'short': 'id',
+                    'long': 'start_id',
+                    'description': 'set start id',
+                    'value': true,
+                    'required': false,
+                    callback: set_start_id
+                }
+            ],
             true // for  Automatically generate help message
         );
 
         memo = yield memoUtil('./memo.json').load();
+
+        period =genPeriod(opts.args());
+        console.log([period.start, period.end].join(' - '));
+
+        startId = opts.get('start_id');
+        console.log(`start id:${startId}`);
+
+        process.exit();
+
         zaim = yield genAccessableZaim({
             consumerKey: config.consumerKey,
             consumerSecret: config.consumerSecret,
@@ -248,9 +275,6 @@
             memo.info.accessTokenSecret = newAccessToken.accessTokenSecret;
             return memo.save();
         });
-
-        period =genPeriod(opts.args());
-        console.log([period.start, period.end].join(' - '));
 
         // zaim からcategory & genre 情報取得
         catgoryDict = yield zaim.getCategoryDict(config.categoryNames);
