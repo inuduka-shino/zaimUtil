@@ -292,7 +292,33 @@
 
         // zaim から取引情報取得
         //moneys = yield zaim.getMoney(period.start, period.end);
-        moneyStream = zaim.zaimMoneyStream(period.start, period.end);
+        {
+            let filter_range_date,
+                filter_order_date;
+            {
+                let prev_date = null,
+                    receipt_id;
+                filter_order_date = filter((moneyInfo) => {
+                    // 日付逆転 アラート
+                    if (prev_date === null) {
+                        prev_date = moneyInfo.date;
+                    } else {
+                        if (moneyInfo.date > prev_date && receipt_id !== moneyInfo.receipt_id) {
+                            console.log(`** alert **  日付逆転`);
+                            // console.dir(moneyInfo);
+                            console.log(`id:${moneyInfo.id}: ${moneyInfo.date} > ${prev_date}`);
+                            receipt_id = moneyInfo.receipt_id;
+                        } else if (moneyInfo.date < prev_date) {
+                            prev_date = moneyInfo.date;
+                            receipt_id = null;
+                        }
+                    }
+                    return true;
+                });
+            }
+            moneyStream = zaim.zaimMoneyStream(period.start, period.end)
+                .pipe(filter_range_date).pipe(filter_order_date);
+        }
 
         const ret = yield Promise.all([
             writeOfxFile(
