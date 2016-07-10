@@ -107,6 +107,7 @@
             yield new Promise((resolve, reject) => {
                 const
                     tryBlock = generateTryBlock(reject);
+                let prev_date = null; // 未来から過去へ
 
                 moneyStream.on('data',tryBlock((moneyInfo) => {
                     let
@@ -155,6 +156,16 @@
                     }
 
                     {
+                        if (prev_date === null) {
+                            prev_date = moneyInfo.date;
+                        } else {
+                            if (moneyInfo.date > prev_date) {
+                                console.log(`** alert **  日付逆転`);
+                                console.dir(moneyInfo);
+                            } else if (moneyInfo.date < prev_date) {
+                                prev_date = moneyInfo.date;
+                            }
+                        }
                         if (moneyInfo.from_account_id === 1 || moneyInfo.to_account_id === 1 ) {
                             count += 1;
                             qifData.addTrans({
