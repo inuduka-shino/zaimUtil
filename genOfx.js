@@ -77,17 +77,13 @@
         return co(function *() {
             // zaim data backup
             const JSONStream = require('JSONStream');
-            let
-                filename,
-                strm;
-
-            filename = (() => {
+            const filename = (() => {
                 // console.log(period.targetMonth);
                 const targetMonth = period.targetMonth.split('-').join('');
                 return ['work/money', targetMonth, '.txt'].join('');
             })();
 
-            strm = yield fs.createWriteStreamFromNewFile(filename);
+            const strm = yield fs.createWriteStreamFromNewFile(filename);
 
             moneyStream
                 .pipe(JSONStream.stringify())
@@ -99,7 +95,7 @@
                         resolve();
                     });
             });
-            console.log(`backuup file wrote. ` + strm.path);
+            console.log('backuup file wrote. ' + strm.path);
         });
     }
 
@@ -235,11 +231,6 @@
 
     // main
     co(function *() {
-        let memo,
-            zaim,
-            moneyStream,
-            period,
-            catgoryDict;
         const config = require('./config');
 
         console.log('start');
@@ -255,8 +246,8 @@
             true // for  Automatically generate help message
         );
 
-        memo = yield memoUtil('./memo.json').load();
-        zaim = yield genAccessableZaim({
+        const memo = yield memoUtil('./memo.json').load();
+        const zaim = yield genAccessableZaim({
             consumerKey: config.consumerKey,
             consumerSecret: config.consumerSecret,
             accessToken: memo.info.accessToken,
@@ -267,15 +258,15 @@
             return memo.save();
         });
 
-        period =genPeriod(opts.args());
+        const period =genPeriod(opts.args());
         console.log([period.start, period.end].join(' - '));
 
         // zaim からcategory & genre 情報取得
-        catgoryDict = yield zaim.getCategoryDict(config.categoryNames);
+        const catgoryDict = yield zaim.getCategoryDict(config.categoryNames);
 
         // zaim から取引情報取得
         //moneys = yield zaim.getMoney(period.start, period.end);
-        moneyStream = zaim.zaimMoneyStream(period.start, period.end);
+        const moneyStream = zaim.zaimMoneyStream(period.start, period.end);
 
         const ret = yield Promise.all([
             writeOfxFile(
